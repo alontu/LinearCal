@@ -15,7 +15,8 @@ export async function fetchCalendarEventsAction(calendarIds: string[], year: num
     const start = new Date(year, 0, 1); // Jan 1
     const end = new Date(year, 11, 31); // Dec 31
 
-    const events = await getEventsForRange(session.accessToken, start, end, calendarIds);
+    const googleCalendarIds = calendarIds.filter(id => id !== 'jewish-calendar');
+    const events = await getEventsForRange(session.accessToken, start, end, googleCalendarIds);
     return events;
 }
 

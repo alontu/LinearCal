@@ -11,6 +11,18 @@ import { useRouter } from 'next/navigation';
 import DayDetailModal from './DayDetailModal';
 import CreateEventModal from './CreateEventModal';
 import { CalendarListEntry } from '@/lib/google-calendar';
+import { HebrewCalendar, Event as HebcalEvent, HDate } from '@hebcal/core';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
+
+// Virtual Calendar Definition
+const JEWISH_CALENDAR: CalendarListEntry = {
+    id: 'jewish-calendar',
+    summary: 'לוח שנה עברי',
+    backgroundColor: '#FFB74D', // Orange-ish
+    foregroundColor: '#000000',
+    primary: false
+};
 
 interface LinearCalendarProps {
     events: CalendarEvent[];
@@ -51,14 +63,20 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
     // State for events and visibility
     const [allEvents, setAllEvents] = useState<CalendarEvent[]>(initialEventsProp);
     const [availableCalendars, setAvailableCalendars] = useState<CalendarListEntry[]>(allCalendars);
-    const [visibleCalendarIds, setVisibleCalendarIds] = useState<string[]>(initialSelectedIdsProp);
+    const [visibleCalendarIds, setVisibleCalendarIds] = useState<string[]>(initialSelectedIdsProp.filter(id => id !== JEWISH_CALENDAR.id));
+    const [showJewishCalendar, setShowJewishCalendar] = useState(initialSelectedIdsProp.includes(JEWISH_CALENDAR.id!));
     const [loadedCalendarIds, setLoadedCalendarIds] = useState<Set<string>>(new Set(initialSelectedIdsProp));
     const [loadingCalendars, setLoadingCalendars] = useState<Set<string>>(new Set());
 
     // Sync state with props (handling server-side navigation updates)
     useEffect(() => {
-        setVisibleCalendarIds(initialSelectedIdsProp);
+        const filteredInitial = initialSelectedIdsProp.filter(id => id !== JEWISH_CALENDAR.id);
+        setVisibleCalendarIds(filteredInitial);
+        setShowJewishCalendar(initialSelectedIdsProp.includes(JEWISH_CALENDAR.id!));
+
+        // Remove JEWISH_CALENDAR from available list
         setAvailableCalendars(allCalendars);
+
         setLoadedCalendarIds(prev => {
             const next = new Set(prev);
             initialSelectedIdsProp.forEach(id => next.add(id));
@@ -71,7 +89,131 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
             // Merge with fresh events from server
             return [...cached, ...initialEventsProp];
         });
-    }, [initialEventsProp, initialSelectedIdsProp]);
+    }, [initialEventsProp, initialSelectedIdsProp, allCalendars]);
+
+    // Generate Jewish Holidays
+    const jewishHolidays = React.useMemo(() => {
+        // Generate for year-1 to year+1 to cover overlaps
+        const options = {
+            isHebrewYear: false,
+            il: true, // Israel schedule
+            locale: 'he',
+            year: year
+        };
+        const events = HebrewCalendar.calendar(options);
+
+        return events
+            .filter(ev => {
+                const mask = ev.getFlags();
+                // Correct Constants based on @hebcal/core definitions:
+                // CHAG = 1
+                // MAJOR_FAST = 16384
+                // MINOR_FAST = 256
+                // CHOL_HAMOED = 2097152
+                // MODERN_HOLIDAY = 8192
+                // SPECIAL_SHABBAT = 512
+                // ROSH_CHODESH = 128
+                // MINOR_HOLIDAY = 524288
+                // EREV = 1048576
+
+                const isChag = (mask & 1) !== 0;
+                const isCholHamoed = (mask & 2097152) !== 0;
+                const isMajorFast = (mask & 16384) !== 0;
+                const isMinorFast = (mask & 256) !== 0;
+                const isFast = isMajorFast || isMinorFast;
+                // Modern Holidays (e.g. Yom HaAtzmaut, Yom HaShoah, Family Day)
+                // User explicitly wants to FILTER OUT minor ones like Family Day.
+                // User wants "Israeli Major Chagim as Yom Haatzmaut".
+                const isModern = (mask & 8192) !== 0;
+                const isErev = (mask & 1048576) !== 0;
+
+                const desc = ev.getDesc();
+
+                // Check for Major Erev Chag (Half work day)
+                // Filter strict list of Erevs to avoid Erev Minor holidays or Modern
+                // We want Erev before full holyday: Rosh Hashana, Yom Kippur, Sukkot, Pesach, Shavuot.
+                let isMajorErev = false;
+                if (isErev) {
+                    if (
+                        desc.startsWith("Erev Rosh Hashana") ||
+                        desc.startsWith("Erev Yom Kippur") ||
+                        desc.startsWith("Erev Sukkot") ||
+                        desc.startsWith("Erev Pesach") ||
+                        desc.startsWith("Erev Shavuot")
+                    ) {
+                        isMajorErev = true;
+                    }
+                }
+
+                // Explicitly check for Shavuot to ensure it acts as Chag (work restriction)
+                // In case flag is missing or different
+                const isShavuot = desc.startsWith("Shavuot") && !desc.includes("Isru Chag"); /* Isru Chag is minor? */
+
+                // Check for other important holidays that might be "Minor" in flags but major for user
+                const isPurim = desc.includes("Purim");
+                const isChanukah = desc.includes("Chanukah");
+                const isTuBiShvat = desc.includes("Tu BiShvat");
+                const isLagBaOmer = desc.includes("Lag BaOmer");
+
+                // Specific Allow List for Modern Holidays
+                let isAllowedModern = false;
+                if (isModern) {
+                    // Allow Yom HaAtzma'ut
+                    if (desc === "Yom HaAtzma'ut") isAllowedModern = true;
+                    if (desc === "Yom HaZikaron") isAllowedModern = true;
+                    if (desc === "Yom HaShoah") isAllowedModern = true;
+                }
+
+                if (isChag || isCholHamoed || isFast || isAllowedModern || isMajorErev || isShavuot || isPurim || isChanukah || isTuBiShvat || isLagBaOmer) return true;
+                return false;
+            })
+            .map(ev => {
+                const hd = ev.getDate();
+                const d = hd.greg();
+                const dateStr = format(d, 'yyyy-MM-dd');
+                const mask = ev.getFlags();
+                const desc = ev.getDesc();
+
+                const isYomTov = (mask & 1) !== 0; // CHAG
+                const isCholHamoed = (mask & 2097152) !== 0;
+                const isMajorFast = (mask & 16384) !== 0;
+                const isMinorFast = (mask & 256) !== 0;
+                const isFast = isMajorFast || isMinorFast;
+                const isErev = (mask & 1048576) !== 0;
+
+                // Yom HaAtzmaut -> treat as Yom Tov for styling (Holiday)
+                const isYomHaatzmaut = desc === "Yom HaAtzma'ut";
+
+                // Explicit check for Shavuot
+                const isShavuot = desc.startsWith("Shavuot") && !desc.includes("Isru Chag");
+
+                const isPurim = desc.includes("Purim");
+
+                // Identify Major Erev for styling
+                let isMajorErev = false;
+                if (isErev) {
+                    if (
+                        desc.startsWith("Erev Rosh Hashana") ||
+                        desc.startsWith("Erev Yom Kippur") ||
+                        desc.startsWith("Erev Sukkot") ||
+                        desc.startsWith("Erev Pesach") ||
+                        desc.startsWith("Erev Shavuot")
+                    ) {
+                        isMajorErev = true;
+                    }
+                }
+
+                return {
+                    date: dateStr,
+                    text: ev.render('he'),
+                    isYomTov: isYomTov || isYomHaatzmaut || isShavuot,
+                    // Treat Major Erev as Chol Hamoed for styling (Friday style)
+                    // Treat Purim as Chol Hamoed (Friday style) - Festive but not Yom Tov
+                    isCholHamoed: isCholHamoed || isMajorErev || isPurim,
+                    isFast: isFast
+                };
+            });
+    }, [year]);
 
     // Pre-calculate Calendar Colors Map
     const calendarColorMap = React.useMemo(() => {
@@ -104,6 +246,113 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
     const [selectedDay, setSelectedDay] = useState<Date | null>(null);
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const filterContainerRef = React.useRef<HTMLDivElement>(null);
+    const exportMenuRef = React.useRef<HTMLDivElement>(null);
+    const mainGridRef = React.useRef<HTMLDivElement>(null);
+    const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExportCSV = () => {
+        // Filter visible events
+        const visible = allEvents.filter(e => !e._calendarId || visibleCalendarIds.includes(e._calendarId));
+
+        // Sort by date
+        visible.sort((a, b) => {
+            const da = new Date(a.start?.dateTime || a.start?.date || 0);
+            const db = new Date(b.start?.dateTime || b.start?.date || 0);
+            return da.getTime() - db.getTime();
+        });
+
+        // CSV Header
+        let csvContent = "Subject,Start Date,Start Time,End Date,End Time,All Day,Description,Location\n";
+
+        visible.forEach(e => {
+            const start = e.start?.dateTime || e.start?.date;
+            const end = e.end?.dateTime || e.end?.date;
+
+            if (!start) return;
+
+            const startDate = parseISO(start);
+            const endDate = end ? parseISO(end) : startDate;
+
+            const isAllDay = !!e.start?.date;
+
+            // Format
+            const sDate = format(startDate, 'yyyy-MM-dd');
+            const sTime = isAllDay ? '' : format(startDate, 'HH:mm');
+            const eDate = format(endDate, 'yyyy-MM-dd');
+            const eTime = isAllDay ? '' : format(endDate, 'HH:mm');
+
+            // Escape helper
+            const esc = (s: string | null | undefined) => {
+                if (!s) return '';
+                const clean = s.replace(/"/g, '""'); // Escape quotes
+                if (clean.includes(',') || clean.includes('\n') || clean.includes('"')) {
+                    return `"${clean}"`;
+                }
+                return clean;
+            };
+
+            const row = [
+                esc(e.summary),
+                sDate,
+                sTime,
+                eDate,
+                eTime,
+                isAllDay ? 'True' : 'False',
+                esc(e.description),
+                esc(e.location)
+            ].join(',');
+            csvContent += row + "\n";
+        });
+
+        // Download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.setAttribute("href", url);
+        link.setAttribute("download", `calendar_export_${year}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportPDF = async () => {
+        if (!mainGridRef.current) return;
+        setIsExporting(true);
+        try {
+            // Wait a moment for any render updates
+            await new Promise(r => setTimeout(r, 100));
+
+            const canvas = await html2canvas(mainGridRef.current, {
+                scale: 2, // Better quality
+                useCORS: true,
+                logging: false,
+                backgroundColor: theme === 'dark' ? '#000000' : '#ffffff', // Ensure bg is captured
+                windowWidth: mainGridRef.current.scrollWidth + 100, // Add buffer
+                width: mainGridRef.current.scrollWidth
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = canvas.width;
+            const imgHeight = canvas.height;
+
+            // Create PDF with custom size matching the content
+            const pdf = new jsPDF({
+                orientation: imgWidth > imgHeight ? 'l' : 'p',
+                unit: 'px',
+                format: [imgWidth, imgHeight]
+            });
+
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save(`calendar_view_${year}.pdf`);
+
+        } catch (err) {
+            console.error("PDF Export failed", err);
+            alert("Export failed");
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     // --- Drag to Create Logic ---
     const [isDragging, setIsDragging] = useState(false);
@@ -240,15 +489,18 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
     };
 
 
-    // Close filter when clicking outside
+    // Close filter and export when clicking outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (filterContainerRef.current && !filterContainerRef.current.contains(event.target as Node)) {
                 setIsFilterOpen(false);
             }
+            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+                setIsExportMenuOpen(false);
+            }
         };
 
-        if (isFilterOpen) {
+        if (isFilterOpen || isExportMenuOpen) {
             document.addEventListener('mousedown', handleClickOutside);
         } else {
             document.removeEventListener('mousedown', handleClickOutside);
@@ -257,7 +509,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [isFilterOpen]);
+    }, [isFilterOpen, isExportMenuOpen]);
 
     useEffect(() => {
         // Initialize theme based on system preference or local storage
@@ -375,13 +627,32 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
 
     // Optimization: Create a map of events by date string (YYYY-MM-DD)
     // Also process multi-day events to display them as bars
-    const { eventsMap, multiDaySegments, maxTracksPerDay } = React.useMemo(() => {
+    const { eventsMap, multiDaySegments, maxTracksPerDay, holidayStylingMap } = React.useMemo(() => {
         const map: Record<string, CalendarEvent[]> = {};
         const segments: Record<string, { event: CalendarEvent, isStart: boolean, isEnd: boolean, position: number, colSpan: number, realEnd: Date }[]> = {};
         const tracksCount: Record<string, number> = {};
+        const holidayStylingMap: Record<string, { text: string, isYomTov: boolean, isCholHamoed: boolean, isFast: boolean }> = {};
 
         // Filter events based on visibility
-        const activeEvents = allEvents.filter(e => !e._calendarId || visibleCalendarIds.includes(e._calendarId));
+        let activeEvents = allEvents.filter(e => !e._calendarId || visibleCalendarIds.includes(e._calendarId));
+
+        if (showJewishCalendar) {
+            // We do NOT add them to activeEvents anymore (User req: "holydays not to appear as calendar events")
+
+            // Populate styling/label map
+            jewishHolidays.forEach(h => {
+                const d = h.date;
+                // If multiple events on same day (e.g. Hanukkah + Shabbat), usually one wins or we combine?
+                // For now, let's just overwrite or maybe append text?
+                // Let's overwrite, assuming the last one is most specific or we just take one.
+                holidayStylingMap[d] = {
+                    text: h.text,
+                    isYomTov: h.isYomTov,
+                    isCholHamoed: h.isCholHamoed,
+                    isFast: h.isFast
+                };
+            });
+        }
 
         // Sort events: multi-day first, then by start time, then by duration (longer first)
         const sortedEvents = [...activeEvents].sort((a, b) => {
@@ -460,8 +731,8 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                 });
             }
         });
-        return { eventsMap: map, multiDaySegments: segments, maxTracksPerDay: tracksCount };
-    }, [allEvents, visibleCalendarIds]);
+        return { eventsMap: map, multiDaySegments: segments, maxTracksPerDay: tracksCount, holidayStylingMap };
+    }, [allEvents, visibleCalendarIds, jewishHolidays, showJewishCalendar]);
 
 
     const getEventsForDay = (day: Date) => {
@@ -488,6 +759,25 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
         }
     }, [year]);
 
+    const toggleJewishCalendar = () => {
+        const newValue = !showJewishCalendar;
+        setShowJewishCalendar(newValue);
+
+        // Update URL to persist state
+        const params = new URLSearchParams(window.location.search);
+        let urlIds = [...visibleCalendarIds];
+        if (newValue) {
+            urlIds.push(JEWISH_CALENDAR.id!);
+        }
+
+        if (urlIds.length > 0) {
+            params.set('calendars', urlIds.join(','));
+        } else {
+            params.delete('calendars');
+        }
+        router.push(`/?${params.toString()}`, { scroll: false });
+    };
+
     return (
         <div className={styles.container}>
             {/* Header with Year Picker */}
@@ -500,6 +790,20 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                         <button onClick={() => changeYear(-1)} className={styles.yearButton}>&lt;</button>
                         <button onClick={() => changeYear(1)} className={styles.yearButton}>&gt;</button>
                     </div>
+
+                    <button
+                        onClick={toggleJewishCalendar}
+                        className={styles.yearButton}
+                        style={{
+                            backgroundColor: showJewishCalendar ? 'rgba(255, 183, 77, 0.2)' : 'transparent',
+                            borderColor: showJewishCalendar ? '#FFB74D' : 'var(--border-color)',
+                            color: showJewishCalendar ? '#FFB74D' : 'var(--text-primary)',
+                            fontWeight: showJewishCalendar ? 'bold' : 'normal',
+                        }}
+                    >
+                        ✡️ לוח עברי
+                    </button>
+
                     <div className={styles.filterContainer} ref={filterContainerRef}>
                         <button onClick={() => setIsFilterOpen(!isFilterOpen)} className={styles.filterButton}>
                             📅 יומנים
@@ -563,6 +867,35 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                                         <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>+</span> יומן חדש
                                     </button>
                                 )}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className={styles.filterContainer} ref={exportMenuRef}>
+                        <button
+                            onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                            className={styles.filterButton}
+                            disabled={isExporting}
+                            style={{ opacity: isExporting ? 0.7 : 1 }}
+                        >
+                            {isExporting ? '⏳...' : '📥 יצוא'}
+                        </button>
+                        {isExportMenuOpen && (
+                            <div className={styles.filterDropdown}>
+                                <div
+                                    className={styles.filterItem}
+                                    onClick={() => { handleExportPDF(); setIsExportMenuOpen(false); }}
+                                    style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}
+                                >
+                                    📄 PDF (תמונה)
+                                </div>
+                                <div
+                                    className={styles.filterItem}
+                                    onClick={() => { handleExportCSV(); setIsExportMenuOpen(false); }}
+                                    style={{ padding: '8px' }}
+                                >
+                                    📊 CSV (אקסל)
+                                </div>
                             </div>
                         )}
                     </div>
@@ -634,6 +967,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
             <div className={styles.viewContainer}>
                 <div
                     className={styles.mainGrid}
+                    ref={mainGridRef}
                     style={{ rowGap: showWeeks ? '24px' : '8px' }}
                 >
                     {/* Header Row */}
@@ -678,6 +1012,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
 
                                     const dayKey = format(day, 'yyyy-MM-dd');
                                     const maxPosition = maxTracksPerDay[dayKey] || 0;
+                                    const holidayStyle = holidayStylingMap[dayKey];
 
                                     const isWeeksStart = index === 0 || getDay(day) === 0; // index 0 might not be Sun, but is visual start
                                     const isSunday = getDay(day) === 0;
@@ -705,8 +1040,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                                             className={`
                                                 ${styles.dayCell} 
                                                 ${isDayToday ? styles.today : ''}
-                                                ${isShabbat ? styles.shabbat : ''}
-                                                ${isFriday ? styles.friday : ''}
+                                                ${(holidayStyle?.isYomTov || isShabbat) ? styles.shabbat : ((holidayStyle?.isCholHamoed || isFriday) ? styles.friday : '')}
                                                 ${isSunday ? styles.sunday : ''}
                                                 ${isDaySelected(day) ? styles.selected : ''}
                                             `}
@@ -722,6 +1056,17 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                                             )}
                                             <div className={styles.dayHeader}>
                                                 <div className={styles.dayNumber}>{format(day, 'd')}</div>
+
+                                                {/* Holiday Label */}
+                                                {holidayStyle && (
+                                                    <div className={styles.holidayLabel} style={{ fontSize: '0.65rem', color: holidayStyle.isYomTov ? 'inherit' : 'var(--text-secondary)', fontWeight: 500, lineHeight: 1.1, marginTop: '2px' }}>
+
+                                                        {holidayStyle.isFast && (
+                                                            <span title="יום צום" style={{ marginInlineEnd: '4px' }}>🍽️</span>
+                                                        )}
+                                                        {holidayStyle.text}
+                                                    </div>
+                                                )}
 
                                                 {/* Single day events indicator: a thin circle with count */}
                                                 {single.length > 0 && (

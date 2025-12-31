@@ -57,7 +57,9 @@ export default async function Home({ searchParams }: PageProps) {
   }
 
   // Fetch events for the WHOLE year from selected calendars
-  const events = await getEventsForRange(session.accessToken, start, end, selectedIds);
+  // Filter out virtual calendars (like Jewish Calendar)
+  const googleCalendarIds = selectedIds.filter(id => id !== 'jewish-calendar');
+  const events = await getEventsForRange(session.accessToken, start, end, googleCalendarIds);
 
 
   // Fetch event colors definitions (for single-calendar mode)
