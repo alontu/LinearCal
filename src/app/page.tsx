@@ -1,66 +1,78 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { getYearRangeDates } from "@/lib/date-utils";
+import { getEventsForRange, getCalendarList, getEventColors } from "@/lib/google-calendar";
+import LinearCalendar from "@/components/LinearCalendar";
+import styles from "@/components/LinearCalendar.module.css";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
 
-export default function Home() {
+interface PageProps {
+  searchParams: Promise<{ year?: string; calendars?: string }>;
+}
+
+
+export default async function Home({ searchParams }: PageProps) {
+  const session = await getServerSession(authOptions);
+
+  // Resolve searchParams (Next.js 15+ allows async access to props)
+  const awaitedSearchParams = await searchParams;
+  const yearParam = awaitedSearchParams?.year;
+  const calendarsParam = awaitedSearchParams?.calendars;
+
+  const currentYear = new Date().getFullYear();
+  const year = yearParam ? parseInt(yearParam) : currentYear;
+
+
+  if (!session || !session.accessToken) {
+    // ... Login UI (omitted for brevity, reuse existing block) ...
+    return (
+      <div className={styles.loginContainer}>
+        <h1 className={styles.title}>לוח שנה ליניארי</h1>
+        <p>התחבר ל-Google Calendar כדי להתחיל.</p>
+        <Link href="/api/auth/signin" className={styles.loginButton}>
+          התחבר ל-Google Calendar
+        </Link>
+      </div>
+    );
+  }
+
+  // Generate range for the selected year
+  const start = new Date(year, 0, 1); // Jan 1
+  const end = new Date(year, 11, 31); // Dec 31
+
+  // Fetch available calendars to show in filter
+  const allCalendars = await getCalendarList(session.accessToken);
+
+  // Determine which calendars to fetch
+  // If param exists, split by comma. Else, use 'primary' (or all? Usually just primary is default).
+  // Let's default to Primary if nothing selected to avoid overwhelming.
+  let selectedIds: string[] = [];
+  if (calendarsParam) {
+    selectedIds = calendarsParam.split(',');
+  } else {
+    const primary = allCalendars.find(c => c.primary);
+    selectedIds = primary && primary.id ? [primary.id] : ['primary'];
+  }
+
+  // Fetch events for the WHOLE year from selected calendars
+  const events = await getEventsForRange(session.accessToken, start, end, selectedIds);
+
+
+  // Fetch event colors definitions (for single-calendar mode)
+  const eventColors = await getEventColors(session.accessToken);
+
+  // We pass 'year' to the component to render the grid
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+    // We already have container styles in component, but let's just render component
+    // Actually, component now includes header and container.
+    <LinearCalendar
+      events={events}
+      year={year}
+      allCalendars={allCalendars}
+      selectedCalendarIds={selectedIds}
+      eventColors={eventColors}
+    />
   );
 }

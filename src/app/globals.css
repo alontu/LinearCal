@@ -1,12 +1,51 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Calendar Theme Variables - Light Mode Default */
+  --cal-bg: #ffffff;
+  --cal-header-bg: rgba(255, 255, 255, 0.8);
+  --cal-border: #e5e5e5;
+  --cal-text: #171717;
+  --cal-text-muted: #737373;
+  --cal-cell-bg: #f9fafb;
+  --cal-cell-hover: #f3f4f6;
+  --cal-cell-shabbat: #f3f4f6;
+  --cal-cell-friday: #f9fafb;
+  --cal-header-cell-bg: #f3f4f6;
+}
+
+[data-theme='dark'] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+
+  --cal-bg: #0a0a0a;
+  --cal-header-bg: rgba(255, 255, 255, 0.03);
+  --cal-border: rgba(255, 255, 255, 0.05);
+  --cal-text: #ededed;
+  --cal-text-muted: #888888;
+  --cal-cell-bg: rgba(255, 255, 255, 0.02);
+  --cal-cell-hover: rgba(255, 255, 255, 0.05);
+  --cal-cell-shabbat: rgba(255, 255, 255, 0.08);
+  --cal-cell-friday: rgba(255, 255, 255, 0.04);
+  --cal-header-cell-bg: #111111;
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    --cal-bg: #0a0a0a;
+    --cal-header-bg: rgba(255, 255, 255, 0.03);
+    --cal-border: rgba(255, 255, 255, 0.05);
+    --cal-text: #ededed;
+    --cal-text-muted: #888888;
+    --cal-cell-bg: rgba(255, 255, 255, 0.02);
+    --cal-cell-hover: rgba(255, 255, 255, 0.05);
+    --cal-cell-shabbat: rgba(255, 255, 255, 0.08);
+    --cal-cell-friday: rgba(255, 255, 255, 0.04);
+    --cal-header-cell-bg: #111111;
   }
 }
 

@@ -1,0 +1,169 @@
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+}
+
+.modalContent {
+    background-color: var(--bg-card);
+    padding: 24px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.label {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.input,
+.textarea,
+.select {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 1rem;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+    outline: none;
+    border-color: var(--text-accent);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+.textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.dateRow {
+    display: flex;
+    gap: 12px;
+}
+
+.dateRow .formGroup {
+    flex: 1;
+}
+
+.buttonRow {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.cancelButton,
+.saveButton {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.2s;
+}
+
+.cancelButton {
+    background-color: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.saveButton {
+    background-color: var(--text-accent);
+    color: white;
+}
+
+.cancelButton:hover {
+    background-color: var(--btn-hover);
+}
+
+.saveButton:hover {
+    opacity: 0.9;
+}
+
+.colorGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.colorOption {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.1s;
+}
+
+.colorOption:hover {
+    transform: scale(1.1);
+}
+
+
+.colorOption.selected {
+    border-color: var(--text-primary);
+    transform: scale(1.1);
+}
+
+/* React Datepicker Customization */
+.datePickerWrapper :global(.react-datepicker-wrapper) {
+    width: 100%;
+}
+
+.datePickerWrapper :global(.react-datepicker__input-container input) {
+    width: 100%;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 1rem;
+}

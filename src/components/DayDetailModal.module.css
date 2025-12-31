@@ -1,0 +1,153 @@
+/* Modal / Card Styling */
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 1rem;
+}
+
+.modalContent {
+    background: var(--cal-bg);
+    width: 100%;
+    max-width: 450px;
+    max-height: 80vh;
+    border-radius: 20px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--cal-border);
+    animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.modalHeader {
+    padding: 24px;
+    border-bottom: 1px solid var(--cal-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--cal-cell-bg);
+}
+
+.modalTitle {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--cal-text);
+    margin: 0;
+}
+
+
+.createButton {
+    background-color: var(--text-accent);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.createButton:hover {
+    opacity: 0.9;
+}
+
+.closeButton {
+    /* RTL usually, but X on left is common in RTL apps too or right. Let's put on left for RTL user flow? Apps commonly put X on top-start or top-end. In RTL (he) start is right. Let's put it on the Left (end) to not conflict with title start. */
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-size: 1.5rem;
+    cursor: pointer;
+    z-index: 10;
+    padding: 4px;
+    margin-right: 8px;
+    /* Add some spacing from create button */
+}
+
+.dateTitle {
+    margin: 0;
+    padding: 20px;
+    background: var(--bg-header, #333);
+    font-size: 1.2rem;
+    text-align: center;
+    border-bottom: 1px solid var(--border-color, #444);
+}
+
+.eventList {
+    padding: 24px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.emptyMessage {
+    text-align: center;
+    color: var(--text-secondary, #888);
+    font-style: italic;
+    padding: 20px;
+}
+
+.eventItem {
+    display: flex;
+    gap: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border-color, #333);
+}
+
+.eventItem:last-child {
+    border-bottom: none;
+}
+
+.eventTime {
+    min-width: 60px;
+    font-size: 0.9rem;
+    color: var(--text-accent, #6ab0ff);
+    font-weight: 500;
+    text-align: left;
+    /* or right for RTL? Time usually LTR or RTL. 14:00 is same. let's keep neutral */
+}
+
+.eventContent {
+    flex: 1;
+}
+
+.eventSummary {
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.eventLocation {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #aaa);
+    margin-bottom: 4px;
+}
+
+.eventDescription {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #888);
+    margin-top: 5px;
+    white-space: pre-wrap;
+}
