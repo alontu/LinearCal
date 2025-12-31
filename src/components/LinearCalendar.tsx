@@ -23,6 +23,25 @@ interface LinearCalendarProps {
 
 import { fetchCalendarEventsAction, createCalendarAction } from '@/app/actions';
 
+// Helper to determine text color based on background brightness
+const getContrastColor = (hex: string) => {
+    if (!hex || !hex.startsWith('#')) return '#ffffff'; // Fallback for vars/invalid
+    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    if (!result) return '#ffffff';
+
+    const r = parseInt(result[1], 16);
+    const g = parseInt(result[2], 16);
+    const b = parseInt(result[3], 16);
+
+    // YIQ equation
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness > 128 ? '#000000' : '#ffffff';
+};
+
 export default function LinearCalendar({ events: initialEventsProp, year, allCalendars, selectedCalendarIds: initialSelectedIdsProp, eventColors }: LinearCalendarProps) {
 
     const router = useRouter();
@@ -760,17 +779,21 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                                                         const totalAdj = startAdj + endAdj;
 
                                                         const eventColor = getEventColor(seg.event);
+                                                        const textColor = getContrastColor(eventColor);
+                                                        const textShadow = textColor === '#ffffff' ? '0 1px 2px rgba(0, 0, 0, 0.3)' : 'none';
 
                                                         return (
                                                             <div
-                                                                key={seg.event.id + trackIdx}
+                                                                key={(seg.event.id || 'evt') + trackIdx}
                                                                 className={`
-                                                                    ${styles.multiDayBar} 
-                                                                    ${isVisualBlockRealStart ? styles.start : ''} 
-                                                                    ${isVisualBlockRealEnd ? styles.end : ''}
-                                                                `}
+                                                                                ${styles.multiDayBar} 
+                                                                                ${isVisualBlockRealStart ? styles.start : ''} 
+                                                                                ${isVisualBlockRealEnd ? styles.end : ''}
+                                                                            `}
                                                                 style={{
                                                                     backgroundColor: eventColor,
+                                                                    color: textColor,
+                                                                    textShadow: textShadow,
                                                                     width: `calc((100% + 13px) * ${span} - 13px + ${totalAdj}px)`,
                                                                     zIndex: 10
                                                                 }}

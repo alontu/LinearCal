@@ -391,14 +391,15 @@
   font-size: clamp(8px, 15cqi, 11px);
   font-weight: 500;
   white-space: nowrap;
-  color: #fff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  color: inherit;
+  text-shadow: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
   /* Removed max-width to allow filling the bar */
   width: 100%;
   pointer-events: none;
 }
+
 
 
 /* Dark/Light Variables */
