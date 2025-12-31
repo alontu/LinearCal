@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import DayDetailModal from './DayDetailModal';
 import CreateEventModal from './CreateEventModal';
 import { CalendarListEntry } from '@/lib/google-calendar';
-import { HebrewCalendar, Event as HebcalEvent, HDate } from '@hebcal/core';
+import { HebrewCalendar, Event as HebcalEvent, HDate, gematriya, Locale } from '@hebcal/core';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 
@@ -65,14 +65,16 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
     const [availableCalendars, setAvailableCalendars] = useState<CalendarListEntry[]>(allCalendars);
     const [visibleCalendarIds, setVisibleCalendarIds] = useState<string[]>(initialSelectedIdsProp.filter(id => id !== JEWISH_CALENDAR.id));
     const [showJewishCalendar, setShowJewishCalendar] = useState(initialSelectedIdsProp.includes(JEWISH_CALENDAR.id!));
+    const [showHebrewDate, setShowHebrewDate] = useState(initialSelectedIdsProp.includes('hebrew-date'));
     const [loadedCalendarIds, setLoadedCalendarIds] = useState<Set<string>>(new Set(initialSelectedIdsProp));
     const [loadingCalendars, setLoadingCalendars] = useState<Set<string>>(new Set());
 
     // Sync state with props (handling server-side navigation updates)
     useEffect(() => {
-        const filteredInitial = initialSelectedIdsProp.filter(id => id !== JEWISH_CALENDAR.id);
+        const filteredInitial = initialSelectedIdsProp.filter(id => id !== JEWISH_CALENDAR.id && id !== 'hebrew-date');
         setVisibleCalendarIds(filteredInitial);
         setShowJewishCalendar(initialSelectedIdsProp.includes(JEWISH_CALENDAR.id!));
+        setShowHebrewDate(initialSelectedIdsProp.includes('hebrew-date'));
 
         // Remove JEWISH_CALENDAR from available list
         setAvailableCalendars(allCalendars);
@@ -765,9 +767,12 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
 
         // Update URL to persist state
         const params = new URLSearchParams(window.location.search);
-        let urlIds = [...visibleCalendarIds];
+        let urlIds = params.get('calendars')?.split(',').filter(Boolean) || [];
+
         if (newValue) {
-            urlIds.push(JEWISH_CALENDAR.id!);
+            if (!urlIds.includes(JEWISH_CALENDAR.id!)) urlIds.push(JEWISH_CALENDAR.id!);
+        } else {
+            urlIds = urlIds.filter(id => id !== JEWISH_CALENDAR.id);
         }
 
         if (urlIds.length > 0) {
@@ -777,6 +782,28 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
         }
         router.push(`/?${params.toString()}`, { scroll: false });
     };
+
+    const toggleHebrewDate = () => {
+        const newValue = !showHebrewDate;
+        setShowHebrewDate(newValue);
+
+        const params = new URLSearchParams(window.location.search);
+        let urlIds = params.get('calendars')?.split(',').filter(Boolean) || [];
+
+        if (newValue) {
+            if (!urlIds.includes('hebrew-date')) urlIds.push('hebrew-date');
+        } else {
+            urlIds = urlIds.filter(id => id !== 'hebrew-date');
+        }
+
+        if (urlIds.length > 0) {
+            params.set('calendars', urlIds.join(','));
+        } else {
+            params.delete('calendars');
+        }
+        router.push(`/?${params.toString()}`, { scroll: false });
+    };
+
 
     return (
         <div className={styles.container}>
@@ -801,7 +828,20 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                             fontWeight: showJewishCalendar ? 'bold' : 'normal',
                         }}
                     >
-                        ✡️ לוח עברי
+                        ✡️ חגים ומועדים
+                    </button>
+
+                    <button
+                        onClick={toggleHebrewDate}
+                        className={styles.yearButton}
+                        style={{
+                            backgroundColor: showHebrewDate ? 'rgba(255, 183, 77, 0.2)' : 'transparent',
+                            borderColor: showHebrewDate ? '#FFB74D' : 'var(--border-color)',
+                            color: showHebrewDate ? '#FFB74D' : 'var(--text-primary)',
+                            fontWeight: showHebrewDate ? 'bold' : 'normal',
+                        }}
+                    >
+                        🗓️ תאריך עברי
                     </button>
 
                     <div className={styles.filterContainer} ref={filterContainerRef}>
@@ -1017,6 +1057,17 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                                     const isWeeksStart = index === 0 || getDay(day) === 0; // index 0 might not be Sun, but is visual start
                                     const isSunday = getDay(day) === 0;
 
+                                    // Hebrew Date Logic (Option C: Milestone Marker)
+                                    let hebrewDateStr = '';
+                                    let hebrewMonthName = '';
+                                    if (showHebrewDate) {
+                                        const hd = new HDate(day);
+                                        hebrewDateStr = gematriya(hd.getDate());
+                                        if (hd.getDate() === 1) {
+                                            hebrewMonthName = Locale.gettext(hd.getMonthName(), 'he');
+                                        }
+                                    }
+
                                     return (
                                         <div
                                             key={day.toISOString()}
@@ -1047,7 +1098,20 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                                             style={{
                                                 // RTL Fix: Ensure earlier days (Right) are above later days (Left) 
                                                 // so that events extending leftwards are visible over the next cell's background.
-                                                zIndex: month.days.length - index
+                                                zIndex: month.days.length - index,
+                                                // Rosh Chodesh visual marker (Start of Month)
+                                                ...(hebrewMonthName ? {
+                                                    // borderInlineStart: '3px solid var(--text-accent)' 
+                                                    // ^^ A bit too aggressive maybe? Let's try a distinct corner or top border.
+                                                    // Top border might blend with grid.
+                                                    // Let's try a subtle gradient overlay or box-shadow?
+                                                    // Or just the bold text is enough? Option C implies visual marker.
+                                                    // Let's do a colored "corner" via gradient:
+                                                    // backgroundImage: 'linear-gradient(135deg, var(--text-accent) 6px, transparent 6px)'
+                                                    // But background is already set by Shabat/Friday...
+                                                    // Let's stick to inline-start border, simpler.
+                                                    boxShadow: 'inset -3px 0 0 0 rgba(255, 183, 77, 0.5)' // Inset border on Right (RTL start)
+                                                } : {})
                                             }}
                                             title={`${format(day, 'dd/MM/yyyy')} (${single.length + multi.length} אירועים)`}
                                         >
@@ -1055,7 +1119,25 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                                                 <span className={styles.weekNumLabel}>שבוע {weekNum}</span>
                                             )}
                                             <div className={styles.dayHeader}>
-                                                <div className={styles.dayNumber}>{format(day, 'd')}</div>
+                                                <div className={styles.dayNumber} style={{ display: 'flex', gap: '4px', alignItems: 'baseline' }}>
+                                                    <span>{format(day, 'd')}</span>
+                                                    {hebrewDateStr && (
+                                                        <span style={{ fontSize: '0.7em', fontWeight: 400, opacity: 0.8 }}>{hebrewDateStr}</span>
+                                                    )}
+                                                </div>
+
+                                                {/* Hebrew Month Label (New Line, Bold) */}
+                                                {hebrewMonthName && (
+                                                    <div style={{
+                                                        fontSize: '0.7rem',
+                                                        fontWeight: 'bold',
+                                                        color: '#FFB74D', // Use direct accent color for visibility
+                                                        lineHeight: 1,
+                                                        marginTop: '2px'
+                                                    }}>
+                                                        {hebrewMonthName}
+                                                    </div>
+                                                )}
 
                                                 {/* Holiday Label */}
                                                 {holidayStyle && (
