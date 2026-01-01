@@ -38,6 +38,10 @@ interface CalendarHeaderProps {
     // Theme & View controls
     showWeeks: boolean;
     onToggleWeeks: () => void;
+    showGridlines: boolean;
+    onToggleGridlines: () => void;
+    showSeparators: boolean;
+    onToggleSeparators: () => void;
     theme: 'light' | 'dark';
     onToggleTheme: () => void;
 }
@@ -62,6 +66,10 @@ export default function CalendarHeader({
     isExporting,
     showWeeks,
     onToggleWeeks,
+    showGridlines,
+    onToggleGridlines,
+    showSeparators,
+    onToggleSeparators,
     theme,
     onToggleTheme
 }: CalendarHeaderProps) {
@@ -108,25 +116,12 @@ export default function CalendarHeader({
                     <button onClick={() => onChangeRange(addYears(startDate, 1), addYears(endDate, 1))} className={styles.yearButton}>&gt;</button>
                 </div>
 
-                <button
-                    onClick={onToggleJewishCalendar}
-                    className={styles.yearButton}
-                    style={{
-                        backgroundColor: showJewishCalendar ? 'rgba(255, 183, 77, 0.2)' : 'transparent',
-                        borderColor: showJewishCalendar ? '#FFB74D' : 'var(--border-color)',
-                        color: showJewishCalendar ? '#FFB74D' : 'var(--text-primary)',
-                        fontWeight: showJewishCalendar ? 'bold' : 'normal',
-                    }}
-                >
-                    ✡️ חגים ומועדים
-                </button>
-
                 {/* Range Picker */}
                 <div className={styles.container} ref={rangePickerRef} style={{ position: 'relative' }}>
                     <button
                         onClick={() => setIsRangePickerOpen(!isRangePickerOpen)}
                         className={styles.yearButton}
-                        style={{ width: 'auto', padding: '0 12px' }}
+                        style={{ width: 'auto' }}
                     >
                         🗓️ טווח תאריכים
                     </button>
@@ -184,6 +179,20 @@ export default function CalendarHeader({
                         </div>
                     )}
                 </div>
+
+                <button
+                    onClick={onToggleJewishCalendar}
+                    className={styles.yearButton}
+                    style={{
+                        backgroundColor: showJewishCalendar ? 'rgba(255, 183, 77, 0.2)' : 'transparent',
+                        borderColor: showJewishCalendar ? '#FFB74D' : 'var(--border-color)',
+                        color: showJewishCalendar ? '#FFB74D' : 'var(--text-primary)',
+                        fontWeight: showJewishCalendar ? 'bold' : 'normal',
+                    }}
+                >
+                    ✡️ חגים ומועדים
+                </button>
+
 
                 <button
                     onClick={onToggleHebrewDate}
@@ -252,6 +261,36 @@ export default function CalendarHeader({
                     }}
                 >
                     #️⃣
+                </button>
+                <button
+                    onClick={onToggleGridlines}
+                    className={styles.themeToggle}
+                    title={showGridlines ? "הסתר קווי רשת" : "הצג קווי רשת"}
+                    style={{
+                        fontSize: '1rem',
+                        width: 'auto',
+                        borderRadius: '8px',
+                        opacity: showGridlines ? 1 : 0.4,
+                        filter: showGridlines ? 'none' : 'grayscale(100%)',
+                        color: 'var(--text-primary)'
+                    }}
+                >
+                    ▦
+                </button>
+                <button
+                    onClick={onToggleSeparators}
+                    className={styles.themeToggle}
+                    title={showSeparators ? "הסתר מפרידים" : "הצג מפרידים"}
+                    style={{
+                        fontSize: '1rem',
+                        width: 'auto',
+                        borderRadius: '8px',
+                        opacity: showSeparators ? 1 : 0.4,
+                        filter: showSeparators ? 'none' : 'grayscale(100%)',
+                        color: 'var(--text-primary)'
+                    }}
+                >
+                    ◫
                 </button>
                 <button onClick={onToggleTheme} className={styles.themeToggle} title={`עבור למצב ${theme === 'dark' ? 'בהיר' : 'כהה'}`}>
                     {theme === 'dark' ? '☀️' : '🌙'}

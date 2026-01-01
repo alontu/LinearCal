@@ -57,8 +57,10 @@ const getContrastColor = (hex: string) => {
 export default function LinearCalendar({ events: initialEventsProp, startDate, endDate, allCalendars, selectedCalendarIds: initialSelectedIdsProp, eventColors }: LinearCalendarProps) {
 
     const router = useRouter();
-    const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+    const [theme, setTheme] = useState<'light' | 'dark'>('light');
     const [showWeeks, setShowWeeks] = useState(true);
+    const [showGridlines, setShowGridlines] = useState(true);
+    const [showSeparators, setShowSeparators] = useState(true);
 
     // State for events and visibility
     const [allEvents, setAllEvents] = useState<CalendarEvent[]>(initialEventsProp);
@@ -620,11 +622,16 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
 
 
     const toggleTheme = () => {
-        const newTheme = theme === 'dark' ? 'light' : 'dark';
-        setTheme(newTheme);
-        localStorage.setItem('theme', newTheme);
-        document.documentElement.setAttribute('data-theme', newTheme);
+        setTheme(prev => {
+            const newTheme = prev === 'light' ? 'dark' : 'light';
+            localStorage.setItem('theme', newTheme);
+            document.documentElement.setAttribute('data-theme', newTheme);
+            return newTheme;
+        });
     };
+
+    const toggleGridlines = () => setShowGridlines(prev => !prev);
+    const toggleSeparators = () => setShowSeparators(prev => !prev);
 
     const jumpToToday = () => {
         const today = new Date();
@@ -875,6 +882,10 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                     setShowWeeks(newValue);
                     localStorage.setItem('showWeeks', String(newValue));
                 }}
+                showGridlines={showGridlines}
+                onToggleGridlines={toggleGridlines}
+                showSeparators={showSeparators}
+                onToggleSeparators={toggleSeparators}
                 theme={theme}
                 onToggleTheme={toggleTheme}
             />
@@ -915,9 +926,9 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
             )}
 
 
-            <div className={styles.viewContainer}>
+            <div className={`${styles.viewContainer} ${!showGridlines ? styles.hideGridlines : ''} ${!showSeparators ? styles.hideSeparators : ''}`}>
                 <div
-                    className={styles.mainGrid}
+                    className={`${styles.mainGrid} ${!showWeeks ? styles.compactGrid : ''}`}
                     ref={mainGridRef}
                     style={{ rowGap: showWeeks ? '24px' : '8px' }}
                 >
@@ -1158,6 +1169,9 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                                     <div key={`trail-${mIndex}-${i}`} className={`${styles.dayCell} ${styles.empty}`} />
                                 ))}
 
+                                {mIndex < months.length - 1 && (
+                                    <div className={styles.monthDivider} style={{ gridColumn: '1 / -1' }} />
+                                )}
                             </React.Fragment>
                         );
                     })}

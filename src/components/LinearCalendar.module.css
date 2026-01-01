@@ -53,11 +53,11 @@
   background-color: var(--bg-header);
   border-radius: 6px;
   position: sticky;
-  left: 0;
+  right: 0;
   z-index: 500;
   background-color: var(--bg-primary);
   box-shadow: 0 0 0 4px var(--bg-primary);
-  border-right: 1px solid var(--border-color);
+  border-left: 1px solid var(--border-color);
 }
 
 .dayCell {
@@ -240,15 +240,102 @@
   pointer-events: none;
 }
 
+/* Week Separator - controlled by .hideSeparators */
 .weekSeparator {
-  border-left: 1px solid #999 !important;
+  position: relative;
+  /* Use pseudo-element for the line to ensure it is independent of border visibility */
 }
+
+.weekSeparator::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -2px;
+  /* Position in the gap (RTL: Left side of Saturday) */
+  width: 2px;
+  background-color: #999;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 1;
+}
+
+/* Hide Separators logic */
+.hideSeparators .monthDivider {
+  display: none;
+}
+
+.hideSeparators .weekSeparator::after {
+  display: none;
+}
+
+/* Ensure Gridlines toggle ONLY affects Day Borders */
+.hideGridlines .dayCell {
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+}
+
+.hideGridlines .headerCell {
+  border-right: 1px solid transparent !important;
+}
+
+/* Ensure explicit removal of old border override attempts if any remain */
+.container:not(.hideSeparators) .weekSeparator {
+  border-left: 1px solid var(--border-color);
+  /* Reset to normal behavior or handled by ::after */
+  /* If we rely on ::after, we don't need special border here, just let normal border logic apply */
+}
+
+/* But we need to ensure the ::after is the ONLY "Thick" line. */
+/* If gridlines are ON, the day has a border. The ::after is ON TOP of it or NEXT to it. */
+/* That's fine. */
 
 .roshChodeshMarker {
   box-shadow: inset -3px 0 0 0 rgba(255, 183, 77, 0.5);
 }
 
+.monthDivider {
+  /* Fix spacing issue: The element itself adds height. */
+  /* We can make it 0 height but visible border, or overlay. */
+  height: 0;
+  border-top: 2px solid var(--border-color);
+  width: 100%;
+  margin-top: -12px;
+  margin-bottom: -10px;
+  /* Pull next month up */
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.compactGrid .monthDivider {
+  margin-top: -4px;
+  margin-bottom: -4px;
+}
+
+.hideGridlines .headerCell {
+  border-right: 1px solid transparent !important;
+}
+
+.hideGridlines .dayCell.today {
+  border: 2px solid #6ab0ff !important;
+}
+
 /* --- Dark/Light Theme Variables --- */
+:root {
+  --bg-primary: #ffffff;
+  --bg-header: #ffffff;
+  --bg-card: #ffffff;
+  --bg-friday: #f8f9fa;
+  --bg-shabbat: #edf2f7;
+  --text-primary: #3c4043;
+  --text-secondary: #5f6368;
+  --text-muted: #80868b;
+  --text-accent: #1a73e8;
+  --border-color: #bbb;
+  --btn-bg: #f1f3f4;
+  --btn-hover: #e8eaed;
+}
+
 :global(:root[data-theme='dark']) {
   --bg-primary: #000000;
   --bg-header: #121212;
@@ -264,20 +351,6 @@
   --btn-hover: #444;
 }
 
-:global(:root[data-theme='light']) {
-  --bg-primary: #ffffff;
-  --bg-header: #ffffff;
-  --bg-card: #ffffff;
-  --bg-friday: #f8f9fa;
-  --bg-shabbat: #edf2f7;
-  --text-primary: #3c4043;
-  --text-secondary: #5f6368;
-  --text-muted: #80868b;
-  --text-accent: #1a73e8;
-  --border-color: #dadce0;
-  --btn-bg: #f1f3f4;
-  --btn-hover: #e8eaed;
-}
 
 /* --- Redesigned Login Page --- */
 .loginContainer {
