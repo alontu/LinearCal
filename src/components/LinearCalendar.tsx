@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import styles from './LinearCalendar.module.css';
 import { CalendarEvent } from '@/lib/google-calendar';
 import { signOut } from 'next-auth/react';
-import { format, eachDayOfInterval, isSameDay, addDays, getWeek, parseISO, isSameMonth, endOfMonth, getDay, isToday, differenceInCalendarDays, startOfMonth, addYears, subYears } from 'date-fns';
+import { format, eachDayOfInterval, isSameDay, addDays, getWeek, parseISO, isSameMonth, endOfMonth, getDay, isToday, differenceInCalendarDays, startOfMonth, addYears, subYears, eachMonthOfInterval, getYear, addMonths } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 
@@ -28,7 +28,8 @@ const JEWISH_CALENDAR: CalendarListEntry = {
 
 interface LinearCalendarProps {
     events: CalendarEvent[];
-    year: number; // Current year to display
+    startDate: Date;
+    endDate: Date;
     allCalendars: CalendarListEntry[];
     selectedCalendarIds: string[];
     eventColors: any; // Google Color definitions
@@ -53,7 +54,7 @@ const getContrastColor = (hex: string) => {
     return brightness > 128 ? '#000000' : '#ffffff';
 };
 
-export default function LinearCalendar({ events: initialEventsProp, year, allCalendars, selectedCalendarIds: initialSelectedIdsProp, eventColors }: LinearCalendarProps) {
+export default function LinearCalendar({ events: initialEventsProp, startDate, endDate, allCalendars, selectedCalendarIds: initialSelectedIdsProp, eventColors }: LinearCalendarProps) {
 
     const router = useRouter();
     const [theme, setTheme] = useState<'light' | 'dark'>('dark');
@@ -92,19 +93,34 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
         });
     }, [initialEventsProp, initialSelectedIdsProp, allCalendars]);
 
-    // Generate Jewish Holidays
+    // Generate Jewish Holidays for all years in range
     const jewishHolidays = React.useMemo(() => {
-        // Generate for year-1 to year+1 to cover overlaps
-        const options = {
-            isHebrewYear: false,
-            il: true, // Israel schedule
-            locale: 'he',
-            year: year
-        };
-        const events = HebrewCalendar.calendar(options);
+        const startYear = getYear(startDate);
+        const endYear = getYear(endDate);
+        const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
 
-        return events
+        let allEvents: HebcalEvent[] = [];
+
+        years.forEach(y => {
+            const options = {
+                isHebrewYear: false,
+                il: true, // Israel schedule
+                locale: 'he',
+                year: y
+            };
+            allEvents = allEvents.concat(HebrewCalendar.calendar(options));
+        });
+
+        // Filter events by actual date range of the calendar
+        const startStr = format(startDate, 'yyyy-MM-dd');
+        const endStr = format(endDate, 'yyyy-MM-dd');
+
+        return allEvents
             .filter(ev => {
+                const d = ev.getDate().greg();
+                const dStr = format(d, 'yyyy-MM-dd');
+                if (dStr < startStr || dStr > endStr) return false;
+
                 const mask = ev.getFlags();
                 // Correct Constants based on @hebcal/core definitions:
                 // CHAG = 1
@@ -214,7 +230,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                     isFast: isFast
                 };
             });
-    }, [year]);
+    }, [startDate, endDate]);
 
     // Pre-calculate Calendar Colors Map
     const calendarColorMap = React.useMemo(() => {
@@ -243,6 +259,44 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
         return calendarColorMap[event._calendarId || ''] || 'var(--event-bar-bg, #3d7eff)';
     };
 
+
+    useEffect(() => {
+        // Simple check: if current year is in range
+        const today = new Date();
+        const startStr = format(startDate, 'yyyy-MM-dd');
+        const endStr = format(endDate, 'yyyy-MM-dd');
+        const todayStr = format(today, 'yyyy-MM-dd');
+
+        if (todayStr >= startStr && todayStr <= endStr) {
+            // Maybe wait a tick for render?
+            setTimeout(() => {
+                const todayEl = document.getElementById('today-cell');
+                if (todayEl) {
+                    todayEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                }
+            }, 100);
+        }
+    }, [startDate, endDate]);
+
+    // Restore Theme Initialization
+    useEffect(() => {
+        const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
+        if (savedTheme) {
+            setTheme(savedTheme);
+            document.documentElement.setAttribute('data-theme', savedTheme);
+        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            setTheme('dark');
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            setTheme('light');
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
+
+        const savedShowWeeks = localStorage.getItem('showWeeks');
+        if (savedShowWeeks !== null) {
+            setShowWeeks(savedShowWeeks === 'true');
+        }
+    }, []);
 
     const [selectedDay, setSelectedDay] = useState<Date | null>(null);
     const mainGridRef = React.useRef<HTMLDivElement>(null);
@@ -307,7 +361,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.setAttribute("href", url);
-        link.setAttribute("download", `calendar_export_${year}.csv`);
+        link.setAttribute("download", `calendar_export_${format(startDate, 'yyyy-MM')}_to_${format(endDate, 'yyyy-MM')}.csv`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -325,8 +379,38 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                 useCORS: true,
                 logging: false,
                 backgroundColor: theme === 'dark' ? '#000000' : '#ffffff', // Ensure bg is captured
-                windowWidth: mainGridRef.current.scrollWidth + 100, // Add buffer
-                width: mainGridRef.current.scrollWidth
+                width: mainGridRef.current.scrollWidth + 40, // Add explicit width buffer
+                height: mainGridRef.current.scrollHeight + 40,
+                x: -20, // Negative x/y with larger width/height simulates padding if we don't use onclone for padding
+                // Actually better to use onclone to add real padding to a wrapper or body
+                onclone: (clonedDoc, element) => {
+                    // 1. Fix Padding: Add padding to the cloned element
+                    element.style.padding = "20px";
+
+                    // 2. Fix Sticky Overlay: Remove sticky positioning from headers in the clone
+                    // We need to select styles by module classes. 
+                    // Since specific class names might be hashed, we can try selecting by general role or known attributes if possible, 
+                    // or just querySelectorAll since we know the structure.
+                    // But here we can access the styles directly if we iterate.
+
+                    const headers = element.querySelectorAll('[class*="headerCell"]');
+                    headers.forEach((el: any) => {
+                        el.style.position = 'static';
+                        el.style.transform = 'none'; // reset any transforms
+                    });
+
+                    const monthLabels = element.querySelectorAll('[class*="monthLabelColumn"]');
+                    monthLabels.forEach((el: any) => {
+                        el.style.position = 'static';
+                        el.style.left = 'auto';
+                    });
+
+                    // 3. Remove Rosh Chodesh Borders for Cleaner PDF
+                    const roshChodeshCells = element.querySelectorAll('[class*="roshChodeshMarker"]');
+                    roshChodeshCells.forEach((el: any) => {
+                        el.style.boxShadow = 'none';
+                    });
+                }
             });
 
             const imgData = canvas.toDataURL('image/png');
@@ -341,7 +425,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
             });
 
             pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
-            pdf.save(`calendar_view_${year}.pdf`);
+            pdf.save(`calendar_view_${format(startDate, 'yyyy-MM')}_to_${format(endDate, 'yyyy-MM')}.pdf`);
 
         } catch (err) {
             console.error("PDF Export failed", err);
@@ -483,24 +567,22 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
 
 
     useEffect(() => {
-        // Initialize theme based on system preference or local storage
-        const savedTheme = localStorage.getItem('theme') as 'light' | 'dark';
-        if (savedTheme) {
-            setTheme(savedTheme);
-            document.documentElement.setAttribute('data-theme', savedTheme);
-        } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            setTheme('dark');
-            document.documentElement.setAttribute('data-theme', 'dark');
-        } else {
-            setTheme('light');
-            document.documentElement.setAttribute('data-theme', 'light');
-        }
+        // Simple check: if current year is in range
+        const today = new Date();
+        const startStr = format(startDate, 'yyyy-MM-dd');
+        const endStr = format(endDate, 'yyyy-MM-dd');
+        const todayStr = format(today, 'yyyy-MM-dd');
 
-        const savedShowWeeks = localStorage.getItem('showWeeks');
-        if (savedShowWeeks !== null) {
-            setShowWeeks(savedShowWeeks === 'true');
+        if (todayStr >= startStr && todayStr <= endStr) {
+            // Maybe wait a tick for render?
+            setTimeout(() => {
+                const todayEl = document.getElementById('today-cell');
+                if (todayEl) {
+                    todayEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                }
+            }, 100);
         }
-    }, []);
+    }, [startDate, endDate]);
 
     // Filter toggle handler
     const handleCalendarToggle = async (calId: string) => {
@@ -516,7 +598,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
         if (!isVisible && !loadedCalendarIds.has(calId)) {
             setLoadingCalendars(prev => { const n = new Set(prev); n.add(calId); return n; });
             try {
-                const newEvents = await fetchCalendarEventsAction([calId], year);
+                const newEvents = await fetchCalendarEventsAction([calId], startDate, endDate);
                 setAllEvents(prev => [...prev, ...newEvents]);
                 setLoadedCalendarIds(prev => { const n = new Set(prev); n.add(calId); return n; });
             } catch (err) {
@@ -545,48 +627,55 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
     };
 
     const jumpToToday = () => {
-        const currentYear = new Date().getFullYear();
-        if (year !== currentYear) {
-            router.push(`/?year=${currentYear}`);
-            // We can't scroll immediately because of navigation. 
-            // Ideally we'd pass a param or use a hash, but for now let's just nav.
-            // A hash like #today might work if we add logic to handle it on mount.
-        } else {
+        const today = new Date();
+        const startStr = format(startDate, 'yyyy-MM-dd');
+        const endStr = format(endDate, 'yyyy-MM-dd');
+        const todayStr = format(today, 'yyyy-MM-dd');
+
+        if (todayStr >= startStr && todayStr <= endStr) {
             const todayEl = document.getElementById('today-cell');
             if (todayEl) {
                 todayEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
             }
+        } else {
+            // Navigate to current year
+            const currentYear = new Date().getFullYear();
+            router.push(`/?year=${currentYear}`);
         }
     };
 
-    // Helper: Change Year
-    // Helper: Change Year
-    const changeYear = (delta: number) => {
-        const newYear = year + delta;
+    // Helper: Change Range
+    const changeRange = (newStart: Date, newEnd: Date) => {
         const params = new URLSearchParams(window.location.search);
-        params.set('year', newYear.toString());
+        params.delete('year');
+        params.set('start', format(newStart, 'yyyy-MM'));
+        params.set('end', format(newEnd, 'yyyy-MM'));
+
         router.push(`/?${params.toString()}`);
     };
 
 
-    // 1. Generate 12 months for the selected year
+
+    // 1. Generate months for the selected range
     // 2. For each month, determine start day (0=Sun, 6=Sat)
     // 3. Render row: Month Label + Padding Cells + Day Cells
 
-    const months = Array.from({ length: 12 }, (_, i) => {
-        const start = new Date(year, i, 1);
-        const end = endOfMonth(start);
-        const days = eachDayOfInterval({ start, end });
-        const padding = getDay(start); // 0 (Sun) to 6 (Sat)
-        const trailingPadding = 37 - (padding + days.length);
+    const months = React.useMemo(() => {
+        const monthStarts = eachMonthOfInterval({ start: startDate, end: endDate });
+        return monthStarts.map(start => {
+            const end = endOfMonth(start);
+            const days = eachDayOfInterval({ start, end });
+            const padding = getDay(start); // 0 (Sun) to 6 (Sat)
+            const trailingPadding = 37 - (padding + days.length);
 
-        return {
-            name: format(start, 'MMM', { locale: he }),
-            days,
-            padding,
-            trailingPadding
-        };
-    });
+            return {
+                name: format(start, 'MMM yyyy', { locale: he }), // Added year to name for clarity in multi-year view
+                days,
+                padding,
+                trailingPadding
+            };
+        });
+    }, [startDate, endDate]);
 
     // Header Row: Su Mo Tu... repeated enough times to cover max width?
     // User wants "Aligned Columns".
@@ -715,20 +804,6 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
     };
 
 
-    // Check on mount if we need to scroll to today (e.g. if just navigated)
-    useEffect(() => {
-        // Simple check: if current year matches param year, try scroll
-        const currentYear = new Date().getFullYear();
-        if (year === currentYear) {
-            // Maybe wait a tick for render?
-            setTimeout(() => {
-                const todayEl = document.getElementById('today-cell');
-                if (todayEl) {
-                    todayEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-                }
-            }, 100);
-        }
-    }, [year]);
 
     const toggleJewishCalendar = () => {
         const newValue = !showJewishCalendar;
@@ -777,9 +852,10 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
     return (
         <div className={styles.container}>
             <CalendarHeader
-                year={year}
+                startDate={startDate}
+                endDate={endDate}
                 onJumpToToday={jumpToToday}
-                onChangeYear={changeYear}
+                onChangeRange={changeRange}
                 showJewishCalendar={showJewishCalendar}
                 onToggleJewishCalendar={toggleJewishCalendar}
                 showHebrewDate={showHebrewDate}
@@ -849,10 +925,11 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                     <div className={styles.headerCell} style={{ gridColumn: 1 }}>חודש</div> {/* Month Col Header */}
                     {headerCols.map((day, i) => {
                         const isSunday = i % 7 === 0;
+                        const isShabbat = i % 7 === 6;
                         return (
                             <div
                                 key={i}
-                                className={`${styles.headerCell} ${isSunday ? styles.sunday : ''}`}
+                                className={`${styles.headerCell} ${isSunday ? styles.sunday : ''} ${isShabbat ? styles.weekSeparator : ''}`}
                             >
                                 {day}
                             </div>
@@ -928,25 +1005,14 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                                                 ${isDayToday ? styles.today : ''}
                                                 ${(holidayStyle?.isYomTov || isShabbat) ? styles.shabbat : ((holidayStyle?.isCholHamoed || isFriday) ? styles.friday : '')}
                                                 ${isSunday ? styles.sunday : ''}
+                                                ${isShabbat ? styles.weekSeparator : ''}
+                                                ${hebrewMonthName ? styles.roshChodeshMarker : ''}
                                                 ${isDaySelected(day) ? styles.selected : ''}
                                             `}
                                             style={{
                                                 // RTL Fix: Ensure earlier days (Right) are above later days (Left) 
                                                 // so that events extending leftwards are visible over the next cell's background.
                                                 zIndex: month.days.length - index,
-                                                // Rosh Chodesh visual marker (Start of Month)
-                                                ...(hebrewMonthName ? {
-                                                    // borderInlineStart: '3px solid var(--text-accent)' 
-                                                    // ^^ A bit too aggressive maybe? Let's try a distinct corner or top border.
-                                                    // Top border might blend with grid.
-                                                    // Let's try a subtle gradient overlay or box-shadow?
-                                                    // Or just the bold text is enough? Option C implies visual marker.
-                                                    // Let's do a colored "corner" via gradient:
-                                                    // backgroundImage: 'linear-gradient(135deg, var(--text-accent) 6px, transparent 6px)'
-                                                    // But background is already set by Shabat/Friday...
-                                                    // Let's stick to inline-start border, simpler.
-                                                    boxShadow: 'inset -3px 0 0 0 rgba(255, 183, 77, 0.5)' // Inset border on Right (RTL start)
-                                                } : {})
                                             }}
                                             title={`${format(day, 'dd/MM/yyyy')} (${single.length + multi.length} אירועים)`}
                                         >
@@ -1097,6 +1163,6 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                     })}
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

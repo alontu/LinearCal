@@ -1,15 +1,22 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { format, addYears, endOfMonth } from 'date-fns';
+import DatePicker, { registerLocale } from 'react-datepicker';
+import { he } from 'date-fns/locale';
+import "react-datepicker/dist/react-datepicker.css";
 import styles from './CalendarHeader.module.css';
+
+registerLocale('he', he);
 import { CalendarListEntry } from '@/lib/google-calendar';
 import CalendarFilter from './CalendarFilter';
 import { signOut } from 'next-auth/react';
 
 interface CalendarHeaderProps {
-    year: number;
+    startDate: Date;
+    endDate: Date;
     onJumpToToday: () => void;
-    onChangeYear: (delta: number) => void;
+    onChangeRange: (start: Date, end: Date) => void;
     showJewishCalendar: boolean;
     onToggleJewishCalendar: () => void;
     showHebrewDate: boolean;
@@ -36,9 +43,10 @@ interface CalendarHeaderProps {
 }
 
 export default function CalendarHeader({
-    year,
+    startDate,
+    endDate,
     onJumpToToday,
-    onChangeYear,
+    onChangeRange,
     showJewishCalendar,
     onToggleJewishCalendar,
     showHebrewDate,
@@ -60,25 +68,44 @@ export default function CalendarHeader({
     const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
     const exportMenuRef = useRef<HTMLDivElement>(null);
 
+    const [isRangePickerOpen, setIsRangePickerOpen] = useState(false);
+    const rangePickerRef = useRef<HTMLDivElement>(null);
+    const [pickerStart, setPickerStart] = useState<Date>(startDate);
+    const [pickerEnd, setPickerEnd] = useState<Date>(endDate);
+
+    useEffect(() => {
+        if (!isRangePickerOpen) {
+            setPickerStart(startDate);
+            setPickerEnd(endDate);
+        }
+    }, [isRangePickerOpen, startDate, endDate]);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
                 setIsExportMenuOpen(false);
             }
+            if (rangePickerRef.current && !rangePickerRef.current.contains(event.target as Node)) {
+                setIsRangePickerOpen(false);
+            }
         };
-        if (isExportMenuOpen) document.addEventListener('mousedown', handleClickOutside);
+        document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [isExportMenuOpen]);
+    }, []);
 
     return (
         <header className={styles.header}>
             <div className={styles.titleGroup}>
-                <div className={styles.title}>שנה {year}</div>
+                <div className={styles.title}>
+                    {startDate.getFullYear() === endDate.getFullYear()
+                        ? `שנה ${startDate.getFullYear()}`
+                        : `${format(startDate, 'MMM yyyy')} - ${format(endDate, 'MMM yyyy')}`}
+                </div>
 
                 <button onClick={onJumpToToday} className={styles.todayButton}>היום</button>
                 <div className={styles.yearControls}>
-                    <button onClick={() => onChangeYear(-1)} className={styles.yearButton}>&lt;</button>
-                    <button onClick={() => onChangeYear(1)} className={styles.yearButton}>&gt;</button>
+                    <button onClick={() => onChangeRange(addYears(startDate, -1), addYears(endDate, -1))} className={styles.yearButton}>&lt;</button>
+                    <button onClick={() => onChangeRange(addYears(startDate, 1), addYears(endDate, 1))} className={styles.yearButton}>&gt;</button>
                 </div>
 
                 <button
@@ -93,6 +120,70 @@ export default function CalendarHeader({
                 >
                     ✡️ חגים ומועדים
                 </button>
+
+                {/* Range Picker */}
+                <div className={styles.container} ref={rangePickerRef} style={{ position: 'relative' }}>
+                    <button
+                        onClick={() => setIsRangePickerOpen(!isRangePickerOpen)}
+                        className={styles.yearButton}
+                        style={{ width: 'auto', padding: '0 12px' }}
+                    >
+                        🗓️ טווח תאריכים
+                    </button>
+                    {isRangePickerOpen && (
+                        <div className={styles.dropdown} style={{ padding: '16px', width: '300px', cursor: 'default' }}>
+                            <h4 style={{ margin: '0 0 12px 0', fontSize: '1rem', color: 'var(--text-primary)' }}>בחר טווח להצגה</h4>
+
+                            <div style={{ marginBottom: '12px' }}>
+                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>מ-</label>
+                                <div dir="ltr"> {/* Force LTR for DatePicker input logic */}
+                                    <DatePicker
+                                        selected={pickerStart}
+                                        onChange={(d) => d && setPickerStart(d)}
+                                        showMonthYearPicker
+                                        dateFormat="MMM yyyy"
+                                        locale="he"
+                                        className={styles.dateInput} // Assuming we might need styles or use inline
+                                        customInput={<input style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />}
+                                    />
+                                </div>
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', marginBottom: '4px', fontSize: '0.9rem' }}>עד-</label>
+                                <div dir="ltr">
+                                    <DatePicker
+                                        selected={pickerEnd}
+                                        onChange={(d) => d && setPickerEnd(d)}
+                                        showMonthYearPicker
+                                        dateFormat="MMM yyyy"
+                                        locale="he"
+                                        customInput={<input style={{ width: '100%', padding: '8px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />}
+                                    />
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    onChangeRange(pickerStart, endOfMonth(pickerEnd));
+                                    setIsRangePickerOpen(false);
+                                }}
+                                style={{
+                                    width: '100%',
+                                    padding: '8px',
+                                    backgroundColor: 'var(--primary-color, #4285F4)',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                הצג
+                            </button>
+                        </div>
+                    )}
+                </div>
 
                 <button
                     onClick={onToggleHebrewDate}
@@ -169,6 +260,6 @@ export default function CalendarHeader({
                     ⏻
                 </button>
             </div>
-        </header>
+        </header >
     );
 }

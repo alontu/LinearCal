@@ -6,10 +6,10 @@ import LinearCalendar from "@/components/LinearCalendar";
 import styles from "@/components/LinearCalendar.module.css";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, eachDayOfInterval } from 'date-fns';
+import { startOfDay, endOfDay, startOfWeek, endOfWeek, eachDayOfInterval, parse, endOfMonth, isValid } from 'date-fns';
 
 interface PageProps {
-  searchParams: Promise<{ year?: string; calendars?: string }>;
+  searchParams: Promise<{ year?: string; calendars?: string; start?: string; end?: string }>;
 }
 
 
@@ -19,10 +19,33 @@ export default async function Home({ searchParams }: PageProps) {
   // Resolve searchParams (Next.js 15+ allows async access to props)
   const awaitedSearchParams = await searchParams;
   const yearParam = awaitedSearchParams?.year;
+  const startParam = awaitedSearchParams?.start;
+  const endParam = awaitedSearchParams?.end;
   const calendarsParam = awaitedSearchParams?.calendars;
 
   const currentYear = new Date().getFullYear();
-  const year = yearParam ? parseInt(yearParam) : currentYear;
+  let startDate: Date;
+  let endDate: Date;
+
+  if (startParam && endParam) {
+    const s = parse(startParam, 'yyyy-MM', new Date());
+    const e = parse(endParam, 'yyyy-MM', new Date());
+    if (isValid(s) && isValid(e)) {
+      startDate = new Date(s.getFullYear(), s.getMonth(), 1);
+      endDate = endOfMonth(e);
+    } else {
+      // Fallback
+      startDate = new Date(currentYear, 0, 1);
+      endDate = new Date(currentYear, 11, 31);
+    }
+  } else if (yearParam) {
+    const y = parseInt(yearParam);
+    startDate = new Date(y, 0, 1);
+    endDate = new Date(y, 11, 31);
+  } else {
+    startDate = new Date(currentYear, 0, 1);
+    endDate = new Date(currentYear, 11, 31);
+  }
 
 
   if (!session || !session.accessToken) {
@@ -51,9 +74,7 @@ export default async function Home({ searchParams }: PageProps) {
     );
   }
 
-  // Generate range for the selected year
-  const start = new Date(year, 0, 1); // Jan 1
-  const end = new Date(year, 11, 31); // Dec 31
+  // Range is already calculated above as startDate / endDate
 
   // Fetch available calendars to show in filter
   const allCalendars = await getCalendarList(session.accessToken);
@@ -72,7 +93,7 @@ export default async function Home({ searchParams }: PageProps) {
   // Fetch events for the WHOLE year from selected calendars
   // Filter out virtual calendars (like Jewish Calendar)
   const googleCalendarIds = selectedIds.filter(id => id !== 'jewish-calendar' && id !== 'hebrew-date');
-  const events = await getEventsForRange(session.accessToken, start, end, googleCalendarIds);
+  const events = await getEventsForRange(session.accessToken, startDate, endDate, googleCalendarIds);
 
 
   // Fetch event colors definitions (for single-calendar mode)
@@ -84,7 +105,8 @@ export default async function Home({ searchParams }: PageProps) {
     // Actually, component now includes header and container.
     <LinearCalendar
       events={events}
-      year={year}
+      startDate={startDate}
+      endDate={endDate}
       allCalendars={allCalendars}
       selectedCalendarIds={selectedIds}
       eventColors={eventColors}
