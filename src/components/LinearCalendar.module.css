@@ -6,134 +6,7 @@
   color: var(--text-primary);
 }
 
-.header {
-  flex-shrink: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1rem 2rem;
-  border-bottom: 1px solid var(--border-color);
-  background-color: var(--bg-header);
-  z-index: 600;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.titleGroup {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  background: linear-gradient(45deg, #6ab0ff, #a0d2ff);
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.todayButton {
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  background-color: var(--btn-bg);
-  color: var(--text-primary);
-  border: 1px solid var(--border-color);
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.2s;
-}
-
-.todayButton:hover {
-  background-color: var(--btn-hover);
-  transform: translateY(-1px);
-}
-
-.yearControls {
-  display: flex;
-  gap: 0.25rem;
-}
-
-.yearButton {
-  padding: 0.5rem 0.75rem;
-  background-color: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  color: var(--text-primary);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.yearButton:hover {
-  background-color: var(--btn-hover);
-}
-
-.filterContainer {
-  position: relative;
-  display: inline-block;
-}
-
-.filterButton {
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  background-color: transparent;
-  color: var(--text-primary);
-  border: 1px dashed var(--border-color);
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s;
-}
-
-.filterButton:hover {
-  border-color: #6ab0ff;
-  background-color: rgba(106, 176, 255, 0.1);
-}
-
-.filterDropdown {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  /* Align right for RTL if needed, but 'right:0' aligns to right edge of parent. In RTL context check if this is correct side. usually left:0 in RTL for alignment to start. Let's assume RTL dir in HTML */
-  margin-top: 8px;
-  background-color: var(--bg-card);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 10px;
-  min-width: 200px;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.filterItem {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-}
-
-.filterItem:hover {
-  background-color: var(--btn-hover);
-}
-
-.themeToggle {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 50%;
-  transition: background-color 0.2s;
-}
-
-.themeToggle:hover {
-  background-color: var(--btn-hover);
-}
+/* --- Main Grid View --- */
 
 .viewContainer {
   flex: 1;
@@ -144,15 +17,9 @@
 
 .mainGrid {
   display: grid;
-  /* 1 Month Label Col + 7 Days/Week * 5-6 Weeks? No, Linear view. 
-       Rows = Months (12)
-       Cols = Days (31 max) + Month Label (1) = 32 cols?
-       No, Plan was "Aligned Columns" so Modulo 7. 
-       Max Width = 1 (Label) + Max Padding (6) + 31 Days = ~38 columns.
-    */
+  /* 1 Month Label Col + 37 Cols */
   grid-template-columns: 100px repeat(37, minmax(40px, 1fr));
   gap: 24px 4px;
-  /* Increased row gap for Week Number labels */
   min-width: 1500px;
   /* Force scroll for large grids */
   padding-bottom: 2rem;
@@ -189,9 +56,7 @@
   left: 0;
   z-index: 500;
   background-color: var(--bg-primary);
-  /* To cover scrolled content */
   box-shadow: 0 0 0 4px var(--bg-primary);
-  /* Cover grid gaps */
   border-right: 1px solid var(--border-color);
 }
 
@@ -199,17 +64,14 @@
   border: 1px solid var(--border-color);
   border-radius: 6px;
   min-height: 80px;
-  /* Allow expansion */
   position: relative;
   background-color: var(--bg-card);
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
   padding: 4px;
-  /* overflow: hidden; Removed to allow bars to bridge gaps */
   cursor: pointer;
   z-index: 1;
-  /* Ensure z-index 1 for border overlap if needed */
 }
 
 .dayCell:hover {
@@ -217,7 +79,6 @@
   transform: translateY(-1px);
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
   z-index: 50;
-  /* Ensure hover is above */
 }
 
 .dayCell.empty {
@@ -236,7 +97,6 @@
   background-color: var(--bg-shabbat);
 }
 
-
 .dayCell.friday {
   background-color: var(--bg-friday);
 }
@@ -254,7 +114,6 @@
   padding-top: 4px;
   height: 34px;
   flex-shrink: 0;
-  /* Fixed height to leave clear space for bars */
 }
 
 .dayNumber {
@@ -266,7 +125,6 @@
 
 .sunday .dayNumber {
   color: #ff4d4d;
-  /* Red for Sunday */
   font-weight: 800;
 }
 
@@ -289,32 +147,21 @@
 .weekNumLabel {
   position: absolute;
   top: -18px;
-  /* Float above the cell */
   right: -1px;
-  /* Align with right edge */
   font-size: 0.65rem;
   font-weight: 700;
   color: var(--text-muted);
   background-color: var(--bg-primary);
-  /* optional: mask line behind it */
   padding: 0 2px;
   border-radius: 4px 4px 0 0;
   line-height: 1;
   z-index: 10;
 }
 
-.dayCell.sunday {
-  border-right: 1px solid var(--text-muted);
-  /* Thin vertical separator */
-  /* Remove default border if we want *only* this one, but usually it adds to grid */
-  /* If we want a truly distinct line, maybe box-shadow or ::before pseudo-element */
-}
-
 .eventCountDot {
   width: 20px;
   height: 20px;
   background-color: var(--text-accent);
-  /* Simple blue dot for single events */
   color: #fff;
   border-radius: 50%;
   display: flex;
@@ -323,29 +170,24 @@
   font-size: 0.7rem;
   margin: 4px;
   align-self: center;
-  /* Center dot */
 }
 
 /* Multi-day bars */
 .multiDayContainer {
   margin-top: auto;
-  /* Push to bottom */
   margin-left: -0.5px;
   margin-right: -0.5px;
   width: calc(100% + 1px);
   display: flex;
   flex-direction: column-reverse;
-  /* track 0 at bottom */
   gap: 1px;
   padding-bottom: 2px;
   z-index: 2;
   position: relative;
-  /* Static/Relative flow */
 }
 
 .emptyTrack {
   height: 18px;
-  /* Match bar height */
   width: 100%;
 }
 
@@ -368,14 +210,12 @@
 
 .multiDayBar.start {
   border-radius: 0 9px 9px 0;
-  /* RTL Start (Right) */
   margin-inline-start: 6px;
   width: calc(100% + 3px - 6px);
 }
 
 .multiDayBar.end {
   border-radius: 9px 0 0 9px;
-  /* RTL End (Left) */
   margin-inline-end: 6px;
   width: calc(100% + 3px - 6px);
 }
@@ -395,25 +235,17 @@
   text-shadow: inherit;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Removed max-width to allow filling the bar */
   width: 100%;
   pointer-events: none;
 }
 
-
-
-/* Dark/Light Variables */
+/* --- Dark/Light Theme Variables --- */
 :global(:root[data-theme='dark']) {
   --bg-primary: #000000;
-  /* Pure Black for premium OLED look */
   --bg-header: #121212;
   --bg-card: #1e1e1e;
-  /* Card distinct from black bg */
   --bg-friday: #2c2c2c;
-  /* Visible dim */
   --bg-shabbat: #383838;
-  /* Distinctly lighter/different from black background */
-
   --text-primary: #ffffff;
   --text-secondary: #e0e0e0;
   --text-muted: #9e9e9e;
@@ -425,16 +257,11 @@
 
 :global(:root[data-theme='light']) {
   --bg-primary: #ffffff;
-  /* Clean White Background */
   --bg-header: #ffffff;
   --bg-card: #ffffff;
   --bg-friday: #f8f9fa;
-  /* Very subtle gray (Snow) */
   --bg-shabbat: #edf2f7;
-  /* Distinct cool gray for weekend */
-
   --text-primary: #3c4043;
-  /* Google Dark Gray */
   --text-secondary: #5f6368;
   --text-muted: #80868b;
   --text-accent: #1a73e8;
@@ -443,27 +270,81 @@
   --btn-hover: #e8eaed;
 }
 
-/* Login Page Styles */
+/* --- Redesigned Login Page --- */
 .loginContainer {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 100vh;
-  gap: 2rem;
-  background-color: var(--bg-primary);
+  background: radial-gradient(circle at center, #1e1e1e 0%, #000000 100%);
+  color: #fff;
   text-align: center;
+  padding: 1rem;
+}
+
+.loginCard {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 24px;
+  padding: 3rem 4rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  max-width: 450px;
+  width: 100%;
+}
+
+.loginLogo {
+  font-size: 4rem;
+  margin-bottom: 0.5rem;
+  filter: drop-shadow(0 0 20px rgba(66, 133, 244, 0.5));
+}
+
+.loginTitle {
+  font-size: 2rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #a0c4ff 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0;
+}
+
+.loginSubtitle {
+  color: #a0a0a0;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
 }
 
 .loginButton {
   padding: 1rem 2rem;
   background-color: #4285F4;
   color: white;
-  border-radius: 8px;
+  border-radius: 12px;
   font-weight: 600;
-  transition: background-color 0.2s;
+  font-size: 1.05rem;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  box-shadow: 0 4px 15px rgba(66, 133, 244, 0.4);
 }
 
 .loginButton:hover {
-  background-color: #357ae8;
+  background-color: #3367d6;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(66, 133, 244, 0.5);
+}
+
+.loginButton svg {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
 }

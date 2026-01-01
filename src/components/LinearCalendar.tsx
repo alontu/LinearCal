@@ -10,10 +10,12 @@ import { useRouter } from 'next/navigation';
 
 import DayDetailModal from './DayDetailModal';
 import CreateEventModal from './CreateEventModal';
+import CalendarHeader from './CalendarHeader';
 import { CalendarListEntry } from '@/lib/google-calendar';
 import { HebrewCalendar, Event as HebcalEvent, HDate, gematriya, Locale } from '@hebcal/core';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { fetchCalendarEventsAction, createCalendarAction } from '@/app/actions';
 
 // Virtual Calendar Definition
 const JEWISH_CALENDAR: CalendarListEntry = {
@@ -31,9 +33,6 @@ interface LinearCalendarProps {
     selectedCalendarIds: string[];
     eventColors: any; // Google Color definitions
 }
-
-
-import { fetchCalendarEventsAction, createCalendarAction } from '@/app/actions';
 
 // Helper to determine text color based on background brightness
 const getContrastColor = (hex: string) => {
@@ -246,11 +245,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
 
 
     const [selectedDay, setSelectedDay] = useState<Date | null>(null);
-    const [isFilterOpen, setIsFilterOpen] = useState(false);
-    const filterContainerRef = React.useRef<HTMLDivElement>(null);
-    const exportMenuRef = React.useRef<HTMLDivElement>(null);
     const mainGridRef = React.useRef<HTMLDivElement>(null);
-    const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
 
     const handleExportCSV = () => {
@@ -364,11 +359,9 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
     const [createRange, setCreateRange] = useState<{ start: Date, end: Date } | null>(null);
     const [editingEvent, setEditingEvent] = useState<any>(null); // For Edit Mode
 
-    const [isCreatingCalendar, setIsCreatingCalendar] = useState(false);
-    const [newCalendarName, setNewCalendarName] = useState("");
     const [isCreatingCalendarLoading, setIsCreatingCalendarLoading] = useState(false);
 
-    const handleCreateCalendar = async () => {
+    const handleCreateCalendar = async (newCalendarName: string) => {
         if (!newCalendarName.trim()) return;
         setIsCreatingCalendarLoading(true);
         try {
@@ -392,9 +385,7 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
                     setLoadedCalendarIds(prev => { const n = new Set(prev); n.add(validId); return n; });
                 }
 
-                // Close input
-                setIsCreatingCalendar(false);
-                setNewCalendarName("");
+                // Success handled by CalendarFilter reseting state
             } else {
                 alert("Failed to create calendar: " + (res.error || "Unknown error"));
             }
@@ -490,28 +481,6 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
         setIsCreateModalOpen(true);
     };
 
-
-    // Close filter and export when clicking outside
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (filterContainerRef.current && !filterContainerRef.current.contains(event.target as Node)) {
-                setIsFilterOpen(false);
-            }
-            if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
-                setIsExportMenuOpen(false);
-            }
-        };
-
-        if (isFilterOpen || isExportMenuOpen) {
-            document.addEventListener('mousedown', handleClickOutside);
-        } else {
-            document.removeEventListener('mousedown', handleClickOutside);
-        }
-
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, [isFilterOpen, isExportMenuOpen]);
 
     useEffect(() => {
         // Initialize theme based on system preference or local storage
@@ -807,166 +776,32 @@ export default function LinearCalendar({ events: initialEventsProp, year, allCal
 
     return (
         <div className={styles.container}>
-            {/* Header with Year Picker */}
-            <header className={styles.header}>
-                <div className={styles.titleGroup}>
-                    <div className={styles.title}>שנה {year}</div>
-
-                    <button onClick={jumpToToday} className={styles.todayButton}>היום</button>
-                    <div className={styles.yearControls}>
-                        <button onClick={() => changeYear(-1)} className={styles.yearButton}>&lt;</button>
-                        <button onClick={() => changeYear(1)} className={styles.yearButton}>&gt;</button>
-                    </div>
-
-                    <button
-                        onClick={toggleJewishCalendar}
-                        className={styles.yearButton}
-                        style={{
-                            backgroundColor: showJewishCalendar ? 'rgba(255, 183, 77, 0.2)' : 'transparent',
-                            borderColor: showJewishCalendar ? '#FFB74D' : 'var(--border-color)',
-                            color: showJewishCalendar ? '#FFB74D' : 'var(--text-primary)',
-                            fontWeight: showJewishCalendar ? 'bold' : 'normal',
-                        }}
-                    >
-                        ✡️ חגים ומועדים
-                    </button>
-
-                    <button
-                        onClick={toggleHebrewDate}
-                        className={styles.yearButton}
-                        style={{
-                            backgroundColor: showHebrewDate ? 'rgba(255, 183, 77, 0.2)' : 'transparent',
-                            borderColor: showHebrewDate ? '#FFB74D' : 'var(--border-color)',
-                            color: showHebrewDate ? '#FFB74D' : 'var(--text-primary)',
-                            fontWeight: showHebrewDate ? 'bold' : 'normal',
-                        }}
-                    >
-                        🗓️ תאריך עברי
-                    </button>
-
-                    <div className={styles.filterContainer} ref={filterContainerRef}>
-                        <button onClick={() => setIsFilterOpen(!isFilterOpen)} className={styles.filterButton}>
-                            📅 יומנים
-                        </button>
-                        {isFilterOpen && (
-                            <div className={styles.filterDropdown}>
-                                {availableCalendars.map(cal => (
-                                    <label key={cal.id} className={styles.filterItem}>
-                                        <input
-                                            type="checkbox"
-                                            checked={visibleCalendarIds.includes(cal.id!)}
-                                            onChange={() => handleCalendarToggle(cal.id!)}
-                                            disabled={loadingCalendars.has(cal.id!)}
-                                        />
-                                        <span style={{ color: cal.backgroundColor || 'inherit' }}>
-                                            {loadingCalendars.has(cal.id!) ? '⏳' : '●'}
-                                        </span>
-                                        <span style={{ opacity: loadingCalendars.has(cal.id!) ? 0.7 : 1 }}>
-                                            {cal.summary}
-                                        </span>
-                                    </label>
-                                ))}
-                                <div className={styles.filterDivider} style={{ margin: '8px 0', borderTop: '1px solid var(--border-color)' }} />
-                                {isCreatingCalendar ? (
-                                    <div className={styles.createCalendarRow} style={{ padding: '4px 8px', display: 'flex', gap: '4px' }}>
-                                        <input
-                                            type="text"
-                                            value={newCalendarName}
-                                            onChange={(e) => setNewCalendarName(e.target.value)}
-                                            placeholder="שם יומן חדש"
-                                            style={{ flex: 1, padding: '4px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }}
-                                            autoFocus
-                                            onKeyDown={(e) => {
-                                                if (e.key === 'Enter') handleCreateCalendar();
-                                                if (e.key === 'Escape') setIsCreatingCalendar(false);
-                                            }}
-                                        />
-                                        <button onClick={handleCreateCalendar} disabled={isCreatingCalendarLoading} style={{ padding: '4px', cursor: 'pointer' }}>
-                                            {isCreatingCalendarLoading ? '...' : '✓'}
-                                        </button>
-                                        <button onClick={() => setIsCreatingCalendar(false)} style={{ padding: '4px', cursor: 'pointer' }}>✕</button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        className={styles.createCalendarButton}
-                                        onClick={() => setIsCreatingCalendar(true)}
-                                        style={{
-                                            width: '100%',
-                                            textAlign: 'start',
-                                            background: 'none',
-                                            border: 'none',
-                                            padding: '8px',
-                                            cursor: 'pointer',
-                                            color: 'var(--text-primary)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '8px',
-                                            fontSize: '0.9rem'
-                                        }}
-                                    >
-                                        <span style={{ fontSize: '1.1rem', fontWeight: 'bold' }}>+</span> יומן חדש
-                                    </button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-
-                    <div className={styles.filterContainer} ref={exportMenuRef}>
-                        <button
-                            onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                            className={styles.filterButton}
-                            disabled={isExporting}
-                            style={{ opacity: isExporting ? 0.7 : 1 }}
-                        >
-                            {isExporting ? '⏳...' : '📥 יצוא'}
-                        </button>
-                        {isExportMenuOpen && (
-                            <div className={styles.filterDropdown}>
-                                <div
-                                    className={styles.filterItem}
-                                    onClick={() => { handleExportPDF(); setIsExportMenuOpen(false); }}
-                                    style={{ padding: '8px', borderBottom: '1px solid var(--border-color)' }}
-                                >
-                                    📄 PDF (תמונה)
-                                </div>
-                                <div
-                                    className={styles.filterItem}
-                                    onClick={() => { handleExportCSV(); setIsExportMenuOpen(false); }}
-                                    style={{ padding: '8px' }}
-                                >
-                                    📊 CSV (אקסל)
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                        onClick={() => {
-                            const newValue = !showWeeks;
-                            setShowWeeks(newValue);
-                            localStorage.setItem('showWeeks', String(newValue));
-                        }}
-                        className={styles.themeToggle}
-                        title={showWeeks ? "הסתר מספרי שבוע" : "הצג מספרי שבוע"}
-                        style={{
-                            fontSize: '1rem',
-                            width: 'auto',
-                            borderRadius: '8px',
-                            opacity: showWeeks ? 1 : 0.4,
-                            filter: showWeeks ? 'none' : 'grayscale(100%)'
-                        }}
-                    >
-                        #️⃣
-                    </button>
-                    <button onClick={toggleTheme} className={styles.themeToggle} title={`עבור למצב ${theme === 'dark' ? 'בהיר' : 'כהה'}`}>
-                        {theme === 'dark' ? '☀️' : '🌙'}
-                    </button>
-                    <button onClick={() => signOut({ callbackUrl: '/' })} className={styles.themeToggle} title="התנתק" style={{ fontSize: '1.2rem', color: 'var(--text-muted)' }}>
-                        ⏻
-                    </button>
-                </div>
-            </header>
+            <CalendarHeader
+                year={year}
+                onJumpToToday={jumpToToday}
+                onChangeYear={changeYear}
+                showJewishCalendar={showJewishCalendar}
+                onToggleJewishCalendar={toggleJewishCalendar}
+                showHebrewDate={showHebrewDate}
+                onToggleHebrewDate={toggleHebrewDate}
+                allCalendars={availableCalendars}
+                visibleCalendarIds={visibleCalendarIds}
+                onCalendarToggle={handleCalendarToggle}
+                loadingCalendars={loadingCalendars}
+                onCreateCalendar={handleCreateCalendar}
+                isCreatingCalendarLoading={isCreatingCalendarLoading}
+                onExportPDF={handleExportPDF}
+                onExportCSV={handleExportCSV}
+                isExporting={isExporting}
+                showWeeks={showWeeks}
+                onToggleWeeks={() => {
+                    const newValue = !showWeeks;
+                    setShowWeeks(newValue);
+                    localStorage.setItem('showWeeks', String(newValue));
+                }}
+                theme={theme}
+                onToggleTheme={toggleTheme}
+            />
 
             {/* Create / Edit Event Modal */}
             <CreateEventModal
