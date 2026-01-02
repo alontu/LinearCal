@@ -23,6 +23,7 @@
   min-width: 1500px;
   /* Force scroll for large grids */
   padding-bottom: 2rem;
+  user-select: none;
 }
 
 .headerCell {
@@ -429,4 +430,18 @@
   width: 20px;
   height: 20px;
   fill: currentColor;
+}
+
+.loginTermsLink {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+  text-decoration: none;
+  transition: all 0.2s;
+  border-bottom: 1px solid transparent;
+}
+
+.loginTermsLink:hover {
+  color: rgba(255, 255, 255, 0.9);
+  border-bottom-color: rgba(255, 255, 255, 0.5);
 }
