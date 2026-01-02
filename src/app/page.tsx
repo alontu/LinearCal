@@ -54,10 +54,17 @@ export default async function Home({ searchParams }: PageProps) {
       <div className={styles.loginContainer}>
         <div className={styles.loginCard}>
           <div className={styles.loginLogo}>📅</div>
-          <h1 className={styles.loginTitle}>לוח שנה ליניארי</h1>
+          <h1 className={styles.loginTitle}>
+            לוח שנה ליניארי
+            <span style={{ display: 'block', fontSize: '1.4rem', marginTop: '0.5rem', color: '#ffffff', fontWeight: 600 }}>Linear Calendar</span>
+          </h1>
           <p className={styles.loginSubtitle}>
             הדרך היעילה ביותר לנהל את הזמן שלך.<br />
             התחבר כדי לצפות ולערוך את יומן Google שלך בתצוגה שנתית.
+          </p>
+          <p className={styles.loginSubtitle} style={{ direction: 'ltr', marginTop: '1.5rem', fontSize: '1rem', color: '#e0e0e0', lineHeight: 1.6 }}>
+            The most efficient way to manage your time.<br />
+            Connect your Google Calendar to visualize your year in a continuous linear view.
           </p>
           <GoogleLoginButton />
           <Link href="/terms" className={styles.loginTermsLink}>
