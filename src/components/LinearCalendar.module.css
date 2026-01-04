@@ -90,8 +90,12 @@
 }
 
 .dayCell.today {
-  border: 2px solid #6ab0ff;
-  background-color: rgba(106, 176, 255, 0.05);
+  /* Option 3: Vibrant Frame */
+  box-shadow: inset 0 0 0 3px #00bcd4;
+  /* Vibrant Teal Inset Frame */
+  background-color: rgba(0, 188, 212, 0.04);
+  z-index: 100;
+  border-color: transparent;
 }
 
 .dayCell.shabbat {
@@ -126,6 +130,12 @@
 
 .sunday .dayNumber {
   color: #ff4d4d;
+  font-weight: 800;
+}
+
+.dayCell.today .dayNumber {
+  color: #008ba3;
+  /* Darker teal for text */
   font-weight: 800;
 }
 
@@ -242,10 +252,7 @@
 }
 
 /* Week Separator - controlled by .hideSeparators */
-.weekSeparator {
-  position: relative;
-  /* Use pseudo-element for the line to ensure it is independent of border visibility */
-}
+/* .weekSeparator used for selection of ::after pseudo-element */
 
 .weekSeparator::after {
   content: "";
@@ -318,7 +325,8 @@
 }
 
 .hideGridlines .dayCell.today {
-  border: 2px solid #6ab0ff !important;
+  box-shadow: inset 0 0 0 3px #00bcd4 !important;
+  border: none !important;
 }
 
 /* --- Dark/Light Theme Variables --- */
