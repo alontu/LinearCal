@@ -63,6 +63,9 @@ export default function TermsPage() {
                             <strong>אבטחת מידע:</strong> כל התקשורת בין האפליקציה לשרתי Google מתבצעת בפרוטוקול מוצפן ומאובטח.
                         </li>
                         <li className={styles.listItem}>
+                            <strong>ניתוח נתונים (Analytics):</strong> אנו משתמשים בכלי צד ג' (PostHog) לניתוח אנונימי של דפוסי השימוש באפליקציה, במטרה לשפר את חווית המשתמש ולזהות תקלות. המידע נאסף בצורה אנונימית, והמערכת מוגדרת באופן המסתיר אוטומטית טקסטים ופרטים אישיים (כגון כותרות אירועים או תיאורים). איננו משתפים את תוכן היומן שלכם עם מערכת הניתוח.
+                        </li>
+                        <li className={styles.listItem}>
                             <strong>זכויות המשתמש:</strong> באפשרותך לבטל את ההרשאה שנתת לאפליקציה בכל עת דרך עמוד <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--text-accent)' }}>הגדרות האבטחה של חשבון Google</a> שלך.
                         </li>
                     </ul>

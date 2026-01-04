@@ -187,7 +187,7 @@ export default function CreateEventModal({
 
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
-            <div className={styles.modalContent} onClick={e => e.stopPropagation()} dir="rtl">
+            <div className={`${styles.modalContent} ph-no-capture`} onClick={e => e.stopPropagation()} dir="rtl">
                 <h2 className={styles.title}>{isEditMode ? 'עריכת אירוע' : 'יצירת אירוע חדש'}</h2>
 
                 <form onSubmit={handleSubmit}>
