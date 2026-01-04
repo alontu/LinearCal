@@ -381,19 +381,10 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                 useCORS: true,
                 logging: false,
                 backgroundColor: theme === 'dark' ? '#000000' : '#ffffff', // Ensure bg is captured
-                width: mainGridRef.current.scrollWidth + 40, // Add explicit width buffer
-                height: mainGridRef.current.scrollHeight + 40,
-                x: -20, // Negative x/y with larger width/height simulates padding if we don't use onclone for padding
-                // Actually better to use onclone to add real padding to a wrapper or body
+                windowWidth: mainGridRef.current.scrollWidth + 100, // Ensure full width is rendered
+                windowHeight: mainGridRef.current.scrollHeight + 100,
                 onclone: (clonedDoc, element) => {
-                    // 1. Fix Padding: Add padding to the cloned element
-                    element.style.padding = "20px";
-
-                    // 2. Fix Sticky Overlay: Remove sticky positioning from headers in the clone
-                    // We need to select styles by module classes. 
-                    // Since specific class names might be hashed, we can try selecting by general role or known attributes if possible, 
-                    // or just querySelectorAll since we know the structure.
-                    // But here we can access the styles directly if we iterate.
+                    // 1. Fix Sticky Overlay: Remove sticky positioning from headers in the clone
 
                     const headers = element.querySelectorAll('[class*="headerCell"]');
                     headers.forEach((el: any) => {
@@ -407,7 +398,7 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                         el.style.left = 'auto';
                     });
 
-                    // 3. Remove Rosh Chodesh Borders for Cleaner PDF
+                    // 2. Remove Rosh Chodesh Borders for Cleaner PDF
                     const roshChodeshCells = element.querySelectorAll('[class*="roshChodeshMarker"]');
                     roshChodeshCells.forEach((el: any) => {
                         el.style.boxShadow = 'none';
@@ -419,14 +410,23 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
             const imgWidth = canvas.width;
             const imgHeight = canvas.height;
 
-            // Create PDF with custom size matching the content
+            // Add Margin to PDF (20px visual * scale 2 = 40px)
+            const margin = 40;
+            const pdfWidth = imgWidth + (margin * 2);
+            const pdfHeight = imgHeight + (margin * 2);
+
+            // Create PDF with custom size matching the content plus margin
             const pdf = new jsPDF({
-                orientation: imgWidth > imgHeight ? 'l' : 'p',
+                orientation: pdfWidth > pdfHeight ? 'l' : 'p',
                 unit: 'px',
-                format: [imgWidth, imgHeight]
+                format: [pdfWidth, pdfHeight]
             });
 
-            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            // Fill Background
+            pdf.setFillColor(theme === 'dark' ? '#000000' : '#ffffff');
+            pdf.rect(0, 0, pdfWidth, pdfHeight, 'F');
+
+            pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
             pdf.save(`calendar_view_${format(startDate, 'yyyy-MM')}_to_${format(endDate, 'yyyy-MM')}.pdf`);
 
         } catch (err) {
