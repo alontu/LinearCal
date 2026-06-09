@@ -3,8 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import styles from './LinearCalendar.module.css';
 import { CalendarEvent } from '@/lib/google-calendar';
-import { signOut } from 'next-auth/react';
-import { format, eachDayOfInterval, isSameDay, addDays, getWeek, parseISO, isSameMonth, endOfMonth, getDay, isToday, differenceInCalendarDays, startOfMonth, addYears, subYears, eachMonthOfInterval, getYear, addMonths } from 'date-fns';
+import { format, eachDayOfInterval, isSameDay, getWeek, parseISO, endOfMonth, getDay, isToday, differenceInCalendarDays, eachMonthOfInterval } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
 
@@ -12,14 +11,18 @@ import DayDetailModal from './DayDetailModal';
 import CreateEventModal from './CreateEventModal';
 import CalendarHeader from './CalendarHeader';
 import { CalendarListEntry } from '@/lib/google-calendar';
-import { HebrewCalendar, Event as HebcalEvent, HDate, gematriya, Locale } from '@hebcal/core';
+import { HDate, gematriya, Locale } from '@hebcal/core';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { fetchCalendarEventsAction, createCalendarAction } from '@/app/actions';
+import { getJewishHolidays, buildHolidayStylingMap } from '@/lib/holidays';
+import { buildEventLayout } from '@/lib/event-layout';
+import { getContrastColor } from '@/lib/color';
+import { JEWISH_CALENDAR_ID, applyCalendarsParam } from '@/lib/calendar-params';
 
 // Virtual Calendar Definition
 const JEWISH_CALENDAR: CalendarListEntry = {
-    id: 'jewish-calendar',
+    id: JEWISH_CALENDAR_ID,
     summary: 'לוח שנה עברי',
     backgroundColor: '#FFB74D', // Orange-ish
     foregroundColor: '#000000',
@@ -34,25 +37,6 @@ interface LinearCalendarProps {
     selectedCalendarIds: string[];
     eventColors: any; // Google Color definitions
 }
-
-// Helper to determine text color based on background brightness
-const getContrastColor = (hex: string) => {
-    if (!hex || !hex.startsWith('#')) return '#ffffff'; // Fallback for vars/invalid
-    // Expand shorthand form (e.g. "03F") to full form (e.g. "0033FF")
-    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-    hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
-
-    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-    if (!result) return '#ffffff';
-
-    const r = parseInt(result[1], 16);
-    const g = parseInt(result[2], 16);
-    const b = parseInt(result[3], 16);
-
-    // YIQ equation
-    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-    return brightness > 128 ? '#000000' : '#ffffff';
-};
 
 export default function LinearCalendar({ events: initialEventsProp, startDate, endDate, allCalendars, selectedCalendarIds: initialSelectedIdsProp, eventColors }: LinearCalendarProps) {
 
@@ -95,144 +79,11 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
         });
     }, [initialEventsProp, initialSelectedIdsProp, allCalendars]);
 
-    // Generate Jewish Holidays for all years in range
-    const jewishHolidays = React.useMemo(() => {
-        const startYear = getYear(startDate);
-        const endYear = getYear(endDate);
-        const years = Array.from({ length: endYear - startYear + 1 }, (_, i) => startYear + i);
-
-        let allEvents: HebcalEvent[] = [];
-
-        years.forEach(y => {
-            const options = {
-                isHebrewYear: false,
-                il: true, // Israel schedule
-                locale: 'he',
-                year: y
-            };
-            allEvents = allEvents.concat(HebrewCalendar.calendar(options));
-        });
-
-        // Filter events by actual date range of the calendar
-        const startStr = format(startDate, 'yyyy-MM-dd');
-        const endStr = format(endDate, 'yyyy-MM-dd');
-
-        return allEvents
-            .filter(ev => {
-                const d = ev.getDate().greg();
-                const dStr = format(d, 'yyyy-MM-dd');
-                if (dStr < startStr || dStr > endStr) return false;
-
-                const mask = ev.getFlags();
-                // Correct Constants based on @hebcal/core definitions:
-                // CHAG = 1
-                // MAJOR_FAST = 16384
-                // MINOR_FAST = 256
-                // CHOL_HAMOED = 2097152
-                // MODERN_HOLIDAY = 8192
-                // SPECIAL_SHABBAT = 512
-                // ROSH_CHODESH = 128
-                // MINOR_HOLIDAY = 524288
-                // EREV = 1048576
-
-                const isChag = (mask & 1) !== 0;
-                const isCholHamoed = (mask & 2097152) !== 0;
-                const isMajorFast = (mask & 16384) !== 0;
-                const isMinorFast = (mask & 256) !== 0;
-                const isFast = isMajorFast || isMinorFast;
-                // Modern Holidays (e.g. Yom HaAtzmaut, Yom HaShoah, Family Day)
-                // User explicitly wants to FILTER OUT minor ones like Family Day.
-                // User wants "Israeli Major Chagim as Yom Haatzmaut".
-                const isModern = (mask & 8192) !== 0;
-                const isErev = (mask & 1048576) !== 0;
-
-                const desc = ev.getDesc();
-
-                // Check for Major Erev Chag (Half work day)
-                // Filter strict list of Erevs to avoid Erev Minor holidays or Modern
-                // We want Erev before full holyday: Rosh Hashana, Yom Kippur, Sukkot, Pesach, Shavuot.
-                let isMajorErev = false;
-                if (isErev) {
-                    if (
-                        desc.startsWith("Erev Rosh Hashana") ||
-                        desc.startsWith("Erev Yom Kippur") ||
-                        desc.startsWith("Erev Sukkot") ||
-                        desc.startsWith("Erev Pesach") ||
-                        desc.startsWith("Erev Shavuot")
-                    ) {
-                        isMajorErev = true;
-                    }
-                }
-
-                // Explicitly check for Shavuot to ensure it acts as Chag (work restriction)
-                // In case flag is missing or different
-                const isShavuot = desc.startsWith("Shavuot") && !desc.includes("Isru Chag"); /* Isru Chag is minor? */
-
-                // Check for other important holidays that might be "Minor" in flags but major for user
-                const isPurim = desc.includes("Purim");
-                const isChanukah = desc.includes("Chanukah");
-                const isTuBiShvat = desc.includes("Tu BiShvat");
-                const isLagBaOmer = desc.includes("Lag BaOmer");
-
-                // Specific Allow List for Modern Holidays
-                let isAllowedModern = false;
-                if (isModern) {
-                    // Allow Yom HaAtzma'ut
-                    if (desc === "Yom HaAtzma'ut") isAllowedModern = true;
-                    if (desc === "Yom HaZikaron") isAllowedModern = true;
-                    if (desc === "Yom HaShoah") isAllowedModern = true;
-                }
-
-                if (isChag || isCholHamoed || isFast || isAllowedModern || isMajorErev || isShavuot || isPurim || isChanukah || isTuBiShvat || isLagBaOmer) return true;
-                return false;
-            })
-            .map(ev => {
-                const hd = ev.getDate();
-                const d = hd.greg();
-                const dateStr = format(d, 'yyyy-MM-dd');
-                const mask = ev.getFlags();
-                const desc = ev.getDesc();
-
-                const isYomTov = (mask & 1) !== 0; // CHAG
-                const isCholHamoed = (mask & 2097152) !== 0;
-                const isMajorFast = (mask & 16384) !== 0;
-                const isMinorFast = (mask & 256) !== 0;
-                const isFast = isMajorFast || isMinorFast;
-                const isErev = (mask & 1048576) !== 0;
-
-                // Yom HaAtzmaut -> treat as Yom Tov for styling (Holiday)
-                const isYomHaatzmaut = desc === "Yom HaAtzma'ut";
-
-                // Explicit check for Shavuot
-                const isShavuot = desc.startsWith("Shavuot") && !desc.includes("Isru Chag");
-
-                const isPurim = desc.includes("Purim");
-
-                // Identify Major Erev for styling
-                let isMajorErev = false;
-                if (isErev) {
-                    if (
-                        desc.startsWith("Erev Rosh Hashana") ||
-                        desc.startsWith("Erev Yom Kippur") ||
-                        desc.startsWith("Erev Sukkot") ||
-                        desc.startsWith("Erev Pesach") ||
-                        desc.startsWith("Erev Shavuot")
-                    ) {
-                        isMajorErev = true;
-                    }
-                }
-
-                return {
-                    date: dateStr,
-                    text: ev.render('he'),
-                    isYomTov: isYomTov || isYomHaatzmaut || isShavuot,
-                    // Treat Major Erev as Chol Hamoed for styling (Friday style)
-                    // Treat Purim as Chol Hamoed (Friday style) - Festive but not Yom Tov
-                    isCholHamoed: isCholHamoed || isMajorErev || isPurim,
-                    isFast: isFast
-                };
-            });
-    }, [startDate, endDate]);
+    // Generate Jewish Holidays for all years in range (Israel schedule)
+    const jewishHolidays = React.useMemo(
+        () => getJewishHolidays(startDate, endDate),
+        [startDate, endDate],
+    );
 
     // Pre-calculate Calendar Colors Map
     const calendarColorMap = React.useMemo(() => {
@@ -610,13 +461,14 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
             }
         }
 
-        // 3. Update URL (Background)
-        const params = new URLSearchParams(window.location.search);
-        if (newVisibleIds.length > 0) {
-            params.set('calendars', newVisibleIds.join(','));
-        } else {
-            params.delete('calendars');
-        }
+        // 3. Update URL (Background). Preserve the virtual overlays (Jewish
+        // holidays / Hebrew date) so toggling a real calendar doesn't drop them
+        // from the URL — which would make the server round-trip reset them off.
+        const params = applyCalendarsParam(new URLSearchParams(window.location.search), {
+            regularIds: newVisibleIds,
+            showJewishCalendar,
+            showHebrewDate,
+        });
         router.push(`/?${params.toString()}`, { scroll: false });
     };
 
@@ -692,113 +544,18 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
         return ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'][dayIndex];
     });
 
-    // Optimization: Create a map of events by date string (YYYY-MM-DD)
-    // Also process multi-day events to display them as bars
+    // Build the grid layout (single-day map + multi-day segment tracks) from the
+    // currently-visible events, plus the holiday styling overlay.
     const { eventsMap, multiDaySegments, maxTracksPerDay, holidayStylingMap } = React.useMemo(() => {
-        const map: Record<string, CalendarEvent[]> = {};
-        const segments: Record<string, { event: CalendarEvent, isStart: boolean, isEnd: boolean, position: number, colSpan: number, realEnd: Date }[]> = {};
-        const tracksCount: Record<string, number> = {};
-        const holidayStylingMap: Record<string, { text: string, isYomTov: boolean, isCholHamoed: boolean, isFast: boolean }> = {};
-
         // Filter events based on visibility
-        let activeEvents = allEvents.filter(e => !e._calendarId || visibleCalendarIds.includes(e._calendarId));
+        const activeEvents = allEvents.filter(e => !e._calendarId || visibleCalendarIds.includes(e._calendarId));
 
-        if (showJewishCalendar) {
-            // We do NOT add them to activeEvents anymore (User req: "holydays not to appear as calendar events")
+        const layout = buildEventLayout(activeEvents);
 
-            // Populate styling/label map
-            jewishHolidays.forEach(h => {
-                const d = h.date;
-                // If multiple events on same day (e.g. Hanukkah + Shabbat), usually one wins or we combine?
-                // For now, let's just overwrite or maybe append text?
-                // Let's overwrite, assuming the last one is most specific or we just take one.
-                holidayStylingMap[d] = {
-                    text: h.text,
-                    isYomTov: h.isYomTov,
-                    isCholHamoed: h.isCholHamoed,
-                    isFast: h.isFast
-                };
-            });
-        }
+        // Holidays are rendered as cell styling/labels, not as calendar events.
+        const holidayStylingMap = showJewishCalendar ? buildHolidayStylingMap(jewishHolidays) : {};
 
-        // Sort events: multi-day first, then by start time, then by duration (longer first)
-        const sortedEvents = [...activeEvents].sort((a, b) => {
-            const startA = new Date(a.start?.dateTime || a.start?.date || 0).getTime();
-            const startB = new Date(b.start?.dateTime || b.start?.date || 0).getTime();
-
-            const isMultiA = a.end?.date || (a.start?.dateTime && a.end?.dateTime && !isSameDay(parseISO(a.start.dateTime), parseISO(a.end.dateTime)));
-            const isMultiB = b.end?.date || (b.start?.dateTime && b.end?.dateTime && !isSameDay(parseISO(b.start.dateTime), parseISO(b.end.dateTime)));
-
-            if (isMultiA && !isMultiB) return -1;
-            if (!isMultiA && isMultiB) return 1;
-
-            if (startA !== startB) return startA - startB;
-
-            const endA = new Date(a.end?.dateTime || a.end?.date || 0).getTime();
-            const endB = new Date(b.end?.dateTime || b.end?.date || 0).getTime();
-            return endB - endA; // Longer first
-        });
-
-        sortedEvents.forEach(event => {
-            const startStr = event.start?.dateTime || event.start?.date;
-            const endStr = event.end?.dateTime || event.end?.date;
-
-            if (!startStr) return;
-
-            const startDate = parseISO(startStr);
-            const endDate = endStr ? parseISO(endStr) : startDate;
-
-            // Handle exclusive end date for Google full-day events
-            let realEnd = endDate;
-            if (event.end?.date) {
-                // For all-day events, Google uses exclusive end date (e.g. Sep 13).
-                // We want inclusive end date (Sep 12).
-                // Subtract 1 day.
-                realEnd = addDays(endDate, -1);
-            }
-            if (realEnd < startDate) realEnd = startDate;
-
-            const daysDifference = Math.ceil((realEnd.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-            const isSingleDay = isSameDay(startDate, realEnd) && !event.start?.date;
-
-            if (isSingleDay) {
-                const dateKey = format(startDate, 'yyyy-MM-dd');
-                if (!map[dateKey]) map[dateKey] = [];
-                map[dateKey].push(event);
-            } else {
-                const days = eachDayOfInterval({ start: startDate, end: realEnd });
-
-                // Track allocator: find first track index available on ALL days of the event
-                let track = 0;
-                while (true) {
-                    let available = true;
-                    for (const day of days) {
-                        const dateKey = format(day, 'yyyy-MM-dd');
-                        if (segments[dateKey]?.some(s => s.position === track)) {
-                            available = false;
-                            break;
-                        }
-                    }
-                    if (available) break;
-                    track++;
-                }
-
-                days.forEach((day, index) => {
-                    const dateKey = format(day, 'yyyy-MM-dd');
-                    if (!segments[dateKey]) segments[dateKey] = [];
-                    segments[dateKey].push({
-                        event,
-                        isStart: index === 0,
-                        isEnd: index === days.length - 1,
-                        position: track,
-                        colSpan: 1, // Will be calculated dynamically in render
-                        realEnd // Store for render calculation
-                    });
-                    tracksCount[dateKey] = Math.max(tracksCount[dateKey] || 0, track + 1);
-                });
-            }
-        });
-        return { eventsMap: map, multiDaySegments: segments, maxTracksPerDay: tracksCount, holidayStylingMap };
+        return { ...layout, holidayStylingMap };
     }, [allEvents, visibleCalendarIds, jewishHolidays, showJewishCalendar]);
 
 
@@ -816,21 +573,12 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
         const newValue = !showJewishCalendar;
         setShowJewishCalendar(newValue);
 
-        // Update URL to persist state
-        const params = new URLSearchParams(window.location.search);
-        let urlIds = params.get('calendars')?.split(',').filter(Boolean) || [];
-
-        if (newValue) {
-            if (!urlIds.includes(JEWISH_CALENDAR.id!)) urlIds.push(JEWISH_CALENDAR.id!);
-        } else {
-            urlIds = urlIds.filter(id => id !== JEWISH_CALENDAR.id);
-        }
-
-        if (urlIds.length > 0) {
-            params.set('calendars', urlIds.join(','));
-        } else {
-            params.delete('calendars');
-        }
+        // Recombine the whole selection so we never clobber other toggles.
+        const params = applyCalendarsParam(new URLSearchParams(window.location.search), {
+            regularIds: visibleCalendarIds,
+            showJewishCalendar: newValue,
+            showHebrewDate,
+        });
         router.push(`/?${params.toString()}`, { scroll: false });
     };
 
@@ -838,20 +586,11 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
         const newValue = !showHebrewDate;
         setShowHebrewDate(newValue);
 
-        const params = new URLSearchParams(window.location.search);
-        let urlIds = params.get('calendars')?.split(',').filter(Boolean) || [];
-
-        if (newValue) {
-            if (!urlIds.includes('hebrew-date')) urlIds.push('hebrew-date');
-        } else {
-            urlIds = urlIds.filter(id => id !== 'hebrew-date');
-        }
-
-        if (urlIds.length > 0) {
-            params.set('calendars', urlIds.join(','));
-        } else {
-            params.delete('calendars');
-        }
+        const params = applyCalendarsParam(new URLSearchParams(window.location.search), {
+            regularIds: visibleCalendarIds,
+            showJewishCalendar,
+            showHebrewDate: newValue,
+        });
         router.push(`/?${params.toString()}`, { scroll: false });
     };
 
@@ -949,7 +688,6 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
 
                     {/* Month Rows */}
                     {months.map((month, mIndex) => {
-                        const totalUsedCols = month.padding + month.days.length;
                         return (
                             <React.Fragment key={mIndex}>
                                 {/* Month Label */}
@@ -971,13 +709,11 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                                     const isShabbat = dayOfWeek === 6; // Saturday
                                     const isFriday = dayOfWeek === 5;
                                     const weekNum = getWeek(day);
-                                    const isWeekStart = dayOfWeek === 0;
 
                                     const dayKey = format(day, 'yyyy-MM-dd');
                                     const maxPosition = maxTracksPerDay[dayKey] || 0;
                                     const holidayStyle = holidayStylingMap[dayKey];
 
-                                    const isWeeksStart = index === 0 || getDay(day) === 0; // index 0 might not be Sun, but is visual start
                                     const isSunday = getDay(day) === 0;
 
                                     // Hebrew Date Logic (Option C: Milestone Marker)
@@ -1077,8 +813,6 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
 
                                                     // Placeholder for empty track or non-visual-start segments
                                                     if (!seg) return <div key={trackIdx} className={styles.emptyTrack} />;
-
-                                                    const barColor = getEventColor(seg.event);
 
                                                     // Visual Start: It's the absolute start of the event OR the first day of the displayed month/row
                                                     // (Assuming 'day' is iterated in order and splits by month)

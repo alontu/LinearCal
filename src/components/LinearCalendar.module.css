@@ -82,11 +82,19 @@
   z-index: 50;
 }
 
+/*
+ * Leading/trailing padding cells. These keep every month row a full,
+ * consistent-width rectangle (so the start/end of each month lines up across
+ * months) while reading clearly as "not a day": faint dashed outline, no fill,
+ * no interaction.
+ */
 .dayCell.empty {
-  border: none;
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
   background-color: transparent !important;
   pointer-events: none;
   box-shadow: none !important;
+  opacity: 0.35;
 }
 
 .dayCell.today {
