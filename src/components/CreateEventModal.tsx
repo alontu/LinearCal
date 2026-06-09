@@ -7,6 +7,12 @@ import { createEventAction, updateEventAction, deleteEventAction } from '@/app/a
 import { format } from 'date-fns';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import {
+    resolveEventCalendarId,
+    tagEventCalendar,
+    toInclusiveEndDate,
+    buildEventPayload,
+} from '@/lib/event-form';
 
 interface CreateEventModalProps {
     isOpen: boolean;
@@ -46,14 +52,20 @@ export default function CreateEventModal({
     const [colorId, setColorId] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     // Initialize state when modal opens
     useEffect(() => {
         if (isOpen) {
+            setErrorMsg(null);
             if (initialEvent) {
                 // Edit Mode
                 setTitle(initialEvent.summary || '');
                 setDescription(initialEvent.description || '');
+
+                // Target the calendar the event actually lives in, so save/delete
+                // hit the right calendar (not just the default visible one).
+                setSelectedCalendarId(resolveEventCalendarId(initialEvent, defaultCalendarId));
 
                 const s = initialEvent.start.dateTime || initialEvent.start.date;
                 const e = initialEvent.end.dateTime || initialEvent.end.date;
@@ -75,11 +87,9 @@ export default function CreateEventModal({
                     setStartDate(startD);
                     setStartTime('09:00'); // Default
 
-                    // Initial logic: Google sends exclusive end date for all day (e.g. End is 14th, meaning event is 13th).
-                    // We want to show Inclusive end date in picker (display 13th).
-                    const inclusiveEnd = new Date(endD);
-                    inclusiveEnd.setDate(inclusiveEnd.getDate() - 1);
-                    setEndDate(inclusiveEnd);
+                    // Google sends an exclusive end date for all-day events (end 14th
+                    // means the event covers the 13th). Show the inclusive date.
+                    setEndDate(toInclusiveEndDate(endD));
 
                     setEndTime('10:00'); // Default
                 }
@@ -107,38 +117,19 @@ export default function CreateEventModal({
         if (!selectedCalendarId || !startDate || !endDate) return;
 
         setIsSubmitting(true);
+        setErrorMsg(null);
 
-        const eventData: any = {
-            summary: title || '(ללא כותרת)',
-            description: description,
-        };
-
-        if (isAllDay) {
-            // Full Day Event
-            eventData.start = { date: format(startDate, 'yyyy-MM-dd') };
-
-            // Exclusive End Date Logic for Submission
-            // If user selected 13th, we send 14th.
-            const endD = new Date(endDate);
-            endD.setDate(endD.getDate() + 1);
-            eventData.end = { date: format(endD, 'yyyy-MM-dd') };
-        } else {
-            // Time Based Event
-            // Construct ISO DateTime strings
-            // We need to combine the Date object from picker with the Time string.
-            const sDate = format(startDate, 'yyyy-MM-dd');
-            const eDate = format(endDate, 'yyyy-MM-dd');
-
-            const startDateTime = new Date(`${sDate}T${startTime}:00`);
-            const endDateTime = new Date(`${eDate}T${endTime}:00`);
-
-            eventData.start = { dateTime: startDateTime.toISOString() };
-            eventData.end = { dateTime: endDateTime.toISOString() };
-        }
-
-        if (colorId) {
-            eventData.colorId = colorId;
-        }
+        const eventData = buildEventPayload({
+            title,
+            description,
+            isAllDay,
+            startDate,
+            endDate,
+            startTime,
+            endTime,
+            colorId,
+            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        });
 
         try {
             let result;
@@ -149,14 +140,16 @@ export default function CreateEventModal({
             }
 
             if (result.success) {
-                onSaveSuccess(result.data);
+                // Tag the returned event with its calendar so visibility filtering
+                // and later edits/deletes resolve to the correct calendar.
+                onSaveSuccess(tagEventCalendar(result.data ?? {}, selectedCalendarId));
                 onClose();
             } else {
-                alert('שגיאה בשמירת האירוע: ' + result.error);
+                setErrorMsg('שגיאה בשמירת האירוע: ' + result.error);
             }
         } catch (err) {
             console.error(err);
-            alert('אירעה שגיאה לא צפויה.');
+            setErrorMsg('אירעה שגיאה לא צפויה. נסה שוב.');
         } finally {
             setIsSubmitting(false);
         }
@@ -166,17 +159,18 @@ export default function CreateEventModal({
         if (!confirm('האם אתה בטוח שברצונך למחוק אירוע זה?')) return;
 
         setIsDeleting(true);
+        setErrorMsg(null);
         try {
             const result = await deleteEventAction(selectedCalendarId, initialEvent.id);
             if (result.success) {
                 if (onDeleteSuccess) onDeleteSuccess(initialEvent.id);
                 onClose();
             } else {
-                alert('שגיאה במחיקת האירוע: ' + result.error);
+                setErrorMsg('שגיאה במחיקת האירוע: ' + result.error);
             }
         } catch (err) {
             console.error(err);
-            alert('שגיאה במחיקה');
+            setErrorMsg('שגיאה במחיקה. נסה שוב.');
         } finally {
             setIsDeleting(false);
         }
@@ -189,6 +183,23 @@ export default function CreateEventModal({
         <div className={styles.modalOverlay} onClick={onClose}>
             <div className={`${styles.modalContent} ph-no-capture`} onClick={e => e.stopPropagation()} dir="rtl">
                 <h2 className={styles.title}>{isEditMode ? 'עריכת אירוע' : 'יצירת אירוע חדש'}</h2>
+
+                {errorMsg && (
+                    <div
+                        role="alert"
+                        style={{
+                            background: 'rgba(220, 53, 69, 0.12)',
+                            border: '1px solid #dc3545',
+                            color: '#b02a37',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            marginBottom: '12px',
+                            fontSize: '0.9rem',
+                        }}
+                    >
+                        {errorMsg}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit}>
                     <div className={styles.formGroup}>
