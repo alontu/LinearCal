@@ -134,7 +134,7 @@ export default function CalendarHeader({
                                 <div dir="ltr"> {/* Force LTR for DatePicker input logic */}
                                     <DatePicker
                                         selected={pickerStart}
-                                        onChange={(d) => d && setPickerStart(d)}
+                                        onChange={(d: Date | null) => d && setPickerStart(d)}
                                         showMonthYearPicker
                                         dateFormat="MMM yyyy"
                                         locale="he"
@@ -149,7 +149,7 @@ export default function CalendarHeader({
                                 <div dir="ltr">
                                     <DatePicker
                                         selected={pickerEnd}
-                                        onChange={(d) => d && setPickerEnd(d)}
+                                        onChange={(d: Date | null) => d && setPickerEnd(d)}
                                         showMonthYearPicker
                                         dateFormat="MMM yyyy"
                                         locale="he"
