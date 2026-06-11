@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { format, addYears, endOfMonth } from 'date-fns';
+import { format, endOfMonth } from 'date-fns';
 import DatePicker, { registerLocale } from 'react-datepicker';
 import { he } from 'date-fns/locale';
 import "react-datepicker/dist/react-datepicker.css";
@@ -17,6 +17,7 @@ interface CalendarHeaderProps {
     endDate: Date;
     onJumpToToday: () => void;
     onChangeRange: (start: Date, end: Date) => void;
+    onChangeYear: (year: number) => void;
     showJewishCalendar: boolean;
     onToggleJewishCalendar: () => void;
     showHebrewDate: boolean;
@@ -51,6 +52,7 @@ export default function CalendarHeader({
     endDate,
     onJumpToToday,
     onChangeRange,
+    onChangeYear,
     showJewishCalendar,
     onToggleJewishCalendar,
     showHebrewDate,
@@ -112,8 +114,8 @@ export default function CalendarHeader({
 
                 <button onClick={onJumpToToday} className={styles.todayButton}>היום</button>
                 <div className={styles.yearControls}>
-                    <button onClick={() => onChangeRange(addYears(startDate, -1), addYears(endDate, -1))} className={styles.yearButton}>&lt;</button>
-                    <button onClick={() => onChangeRange(addYears(startDate, 1), addYears(endDate, 1))} className={styles.yearButton}>&gt;</button>
+                    <button onClick={() => onChangeYear(startDate.getFullYear() - 1)} className={styles.yearButton} title="שנה קודמת">&lt;</button>
+                    <button onClick={() => onChangeYear(startDate.getFullYear() + 1)} className={styles.yearButton} title="שנה הבאה">&gt;</button>
                 </div>
 
                 {/* Range Picker */}

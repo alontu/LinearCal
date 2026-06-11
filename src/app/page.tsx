@@ -1,13 +1,11 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getYearRangeDates } from "@/lib/date-utils";
+import { resolveRange } from "@/lib/calendar-range";
 import { getEventsForRange, getCalendarList, getEventColors } from "@/lib/google-calendar";
 import LinearCalendar from "@/components/LinearCalendar";
 import styles from "@/components/LinearCalendar.module.css";
 import GoogleLoginButton from "@/components/GoogleLoginButton";
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { startOfDay, endOfDay, startOfWeek, endOfWeek, eachDayOfInterval, parse, endOfMonth, isValid } from 'date-fns';
 
 interface PageProps {
   searchParams: Promise<{ year?: string; calendars?: string; start?: string; end?: string }>;
@@ -24,29 +22,12 @@ export default async function Home({ searchParams }: PageProps) {
   const endParam = awaitedSearchParams?.end;
   const calendarsParam = awaitedSearchParams?.calendars;
 
-  const currentYear = new Date().getFullYear();
-  let startDate: Date;
-  let endDate: Date;
-
-  if (startParam && endParam) {
-    const s = parse(startParam, 'yyyy-MM', new Date());
-    const e = parse(endParam, 'yyyy-MM', new Date());
-    if (isValid(s) && isValid(e)) {
-      startDate = new Date(s.getFullYear(), s.getMonth(), 1);
-      endDate = endOfMonth(e);
-    } else {
-      // Fallback
-      startDate = new Date(currentYear, 0, 1);
-      endDate = new Date(currentYear, 11, 31);
-    }
-  } else if (yearParam) {
-    const y = parseInt(yearParam);
-    startDate = new Date(y, 0, 1);
-    endDate = new Date(y, 11, 31);
-  } else {
-    startDate = new Date(currentYear, 0, 1);
-    endDate = new Date(currentYear, 11, 31);
-  }
+  // Arrows / "today" navigate in whole calendar years; the picker can still set
+  // an explicit custom range via start+end. See resolveRange.
+  const { startDate, endDate } = resolveRange(
+    { year: yearParam, start: startParam, end: endParam },
+    new Date(),
+  );
 
 
   // Show the login screen when there's no session, no token, OR the token
