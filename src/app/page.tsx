@@ -49,7 +49,10 @@ export default async function Home({ searchParams }: PageProps) {
   }
 
 
-  if (!session || !session.accessToken) {
+  // Show the login screen when there's no session, no token, OR the token
+  // refresh failed (`session.error`). Without the error check the user would be
+  // left with a stale/expired token and silent 401s from the Google API.
+  if (!session || !session.accessToken || session.error) {
     return (
       <div className={styles.loginContainer}>
         <div className={styles.loginCard}>
@@ -58,6 +61,11 @@ export default async function Home({ searchParams }: PageProps) {
             לוח שנה ליניארי
             <span style={{ display: 'block', fontSize: '1.4rem', marginTop: '0.5rem', color: '#ffffff', fontWeight: 600 }}>Linear Calendar</span>
           </h1>
+          {session?.error && (
+            <p className={styles.loginSubtitle} style={{ color: '#ffcc80' }}>
+              ההתחברות פגה — יש להתחבר מחדש.
+            </p>
+          )}
           <p className={styles.loginSubtitle}>
             הדרך היעילה ביותר לנהל את הזמן שלך.<br />
             התחבר כדי לצפות ולערוך את יומן Google שלך בתצוגה שנתית.

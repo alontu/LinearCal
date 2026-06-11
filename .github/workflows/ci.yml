@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Blocking gates — these must pass before the app can be deployed.
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # Informational for now (the codebase still has pre-existing `any`s to
+      # clean up); flip to blocking once the lint backlog is cleared.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true

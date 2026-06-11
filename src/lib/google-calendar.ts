@@ -1,34 +1,41 @@
-import { google } from 'googleapis';
-import { startOfDay, endOfDay } from 'date-fns';
+import { google, calendar_v3 } from 'googleapis';
 
-// Helper to refresh token is now handled in auth.ts via NextAuth rotation.
-// Ensure your NextAuth config has 'offline' access_type (already done).
+// Token refresh is handled in auth.ts via NextAuth rotation
+// (NextAuth config uses access_type 'offline').
 
+/** Extract a human-readable message from an unknown thrown value. */
+function errorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (typeof error === 'string') return error;
+    try {
+        return JSON.stringify(error);
+    } catch {
+        return String(error);
+    }
+}
 
-export async function getCalendarList(accessToken: string) {
+/** Build an authenticated Calendar API client for a given access token. */
+function calendarClient(accessToken: string): calendar_v3.Calendar {
     const auth = new google.auth.OAuth2();
     auth.setCredentials({ access_token: accessToken });
-    const calendar = google.calendar({ version: 'v3', auth });
+    return google.calendar({ version: 'v3', auth });
+}
 
+export async function getCalendarList(accessToken: string) {
+    const calendar = calendarClient(accessToken);
     try {
-        const response = await calendar.calendarList.list({
-            minAccessRole: 'reader',
-        });
+        const response = await calendar.calendarList.list({ minAccessRole: 'reader' });
         return response.data.items || [];
-    } catch (error: any) {
-        console.error('Error fetching calendar list:', error?.message || error);
+    } catch (error: unknown) {
+        console.error('Error fetching calendar list:', errorMessage(error));
         return [];
     }
 }
 
 export async function getEventsForRange(accessToken: string, start: Date, end: Date, calendarIds: string[] = ['primary']) {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    const calendar = google.calendar({ version: 'v3', auth });
-
+    const calendar = calendarClient(accessToken);
     try {
         const promises = calendarIds.map(async (calendarId) => {
-            // console.log(`Fetching events for ${calendarId} from ${start.toISOString()} to ${end.toISOString()}`);
             try {
                 const response = await calendar.events.list({
                     calendarId,
@@ -40,35 +47,31 @@ export async function getEventsForRange(accessToken: string, start: Date, end: D
                 });
                 return (response.data.items || []).map(event => ({
                     ...event,
-                    // optimization: tag event with calendarId so frontend knows source color if needed
-                    // (though google event resource usually has colorId, not calendar color directly on event)
-                    _calendarId: calendarId
+                    // Tag the event with its source calendar so the client can
+                    // resolve calendar color and target edits/deletes correctly.
+                    _calendarId: calendarId,
                 }));
-            } catch (e) {
-                console.error(`Failed to fetch for calendar ${calendarId}`, e);
+            } catch (e: unknown) {
+                console.error(`Failed to fetch for calendar ${calendarId}:`, errorMessage(e));
                 return [];
             }
         });
 
         const results = await Promise.all(promises);
         return results.flat();
-
-    } catch (error: any) {
-        console.error('Error fetching calendar events:', error?.message || error);
+    } catch (error: unknown) {
+        console.error('Error fetching calendar events:', errorMessage(error));
         return [];
     }
 }
 
 export async function getEventColors(accessToken: string) {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    const calendar = google.calendar({ version: 'v3', auth });
-
+    const calendar = calendarClient(accessToken);
     try {
         const response = await calendar.colors.get();
         return response.data.event || {};
-    } catch (error: any) {
-        console.error('Error fetching event colors:', error?.message || error);
+    } catch (error: unknown) {
+        console.error('Error fetching event colors:', errorMessage(error));
         return {};
     }
 }
@@ -94,72 +97,46 @@ export type CalendarListEntry = {
 };
 
 
-export async function createEvent(accessToken: string, calendarId: string, eventDetails: any) {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    const calendar = google.calendar({ version: 'v3', auth });
-
+export async function createEvent(accessToken: string, calendarId: string, eventDetails: calendar_v3.Schema$Event) {
+    const calendar = calendarClient(accessToken);
     try {
-        const response = await calendar.events.insert({
-            calendarId,
-            requestBody: eventDetails,
-        });
+        const response = await calendar.events.insert({ calendarId, requestBody: eventDetails });
         return response.data;
-    } catch (error: any) {
-        console.error('Error creating event:', error?.message || error);
+    } catch (error: unknown) {
+        console.error('Error creating event:', errorMessage(error));
         throw error;
     }
 }
 
-export async function updateEvent(accessToken: string, calendarId: string, eventId: string, eventDetails: any) {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    const calendar = google.calendar({ version: 'v3', auth });
-
+export async function updateEvent(accessToken: string, calendarId: string, eventId: string, eventDetails: calendar_v3.Schema$Event) {
+    const calendar = calendarClient(accessToken);
     try {
-        const response = await calendar.events.patch({
-            calendarId,
-            eventId,
-            requestBody: eventDetails,
-        });
+        const response = await calendar.events.patch({ calendarId, eventId, requestBody: eventDetails });
         return response.data;
-    } catch (error: any) {
-        console.error('Error updating event:', error?.message || error);
+    } catch (error: unknown) {
+        console.error('Error updating event:', errorMessage(error));
         throw error;
     }
 }
 
 export async function deleteEvent(accessToken: string, calendarId: string, eventId: string) {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    const calendar = google.calendar({ version: 'v3', auth });
-
+    const calendar = calendarClient(accessToken);
     try {
-        await calendar.events.delete({
-            calendarId,
-            eventId,
-        });
+        await calendar.events.delete({ calendarId, eventId });
         return { success: true };
-    } catch (error: any) {
-        console.error('Error deleting event:', error?.message || error);
+    } catch (error: unknown) {
+        console.error('Error deleting event:', errorMessage(error));
         throw error;
     }
 }
 
 export async function createCalendar(accessToken: string, title: string) {
-    const auth = new google.auth.OAuth2();
-    auth.setCredentials({ access_token: accessToken });
-    const calendar = google.calendar({ version: 'v3', auth });
-
+    const calendar = calendarClient(accessToken);
     try {
-        const response = await calendar.calendars.insert({
-            requestBody: {
-                summary: title
-            }
-        });
+        const response = await calendar.calendars.insert({ requestBody: { summary: title } });
         return response.data;
-    } catch (error: any) {
-        console.error('Error creating calendar:', error?.message || error);
+    } catch (error: unknown) {
+        console.error('Error creating calendar:', errorMessage(error));
         throw error;
     }
 }
