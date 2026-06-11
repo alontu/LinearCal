@@ -39,3 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# --- LinearCal deploy agent: credentials + local tooling, NEVER commit ---
+# (the .env* rule above misses files that *end* in .env, like linearcal-agent.env)
+*.env
+linearcal-agent.env
+/deploy-agent/
