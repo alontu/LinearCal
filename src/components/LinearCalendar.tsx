@@ -485,25 +485,31 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
     const toggleGridlines = () => setShowGridlines(prev => !prev);
     const toggleSeparators = () => setShowSeparators(prev => !prev);
 
+    // Navigate to a full calendar year (Jan..Dec) via the `year` param.
+    const changeYear = (year: number) => {
+        const params = new URLSearchParams(window.location.search);
+        params.delete('start');
+        params.delete('end');
+        params.set('year', String(year));
+        router.push(`/?${params.toString()}`);
+    };
+
     const jumpToToday = () => {
         const today = new Date();
-        const startStr = format(startDate, 'yyyy-MM-dd');
-        const endStr = format(endDate, 'yyyy-MM-dd');
-        const todayStr = format(today, 'yyyy-MM-dd');
-
-        if (todayStr >= startStr && todayStr <= endStr) {
-            const todayEl = document.getElementById('today-cell');
-            if (todayEl) {
-                todayEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
-            }
+        const currentYear = today.getFullYear();
+        // If we're already showing exactly the current calendar year, just scroll
+        // to today; otherwise navigate to this year's full Jan..Dec view.
+        const onCurrentYear =
+            startDate.getFullYear() === currentYear && startDate.getMonth() === 0 &&
+            endDate.getFullYear() === currentYear && endDate.getMonth() === 11;
+        if (onCurrentYear) {
+            document.getElementById('today-cell')?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
         } else {
-            // Navigate to current year
-            const currentYear = new Date().getFullYear();
-            router.push(`/?year=${currentYear}`);
+            changeYear(currentYear);
         }
     };
 
-    // Helper: Change Range
+    // Helper: Change Range (custom range from the date-range picker).
     const changeRange = (newStart: Date, newEnd: Date) => {
         const params = new URLSearchParams(window.location.search);
         params.delete('year');
@@ -602,6 +608,7 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                 endDate={endDate}
                 onJumpToToday={jumpToToday}
                 onChangeRange={changeRange}
+                onChangeYear={changeYear}
                 showJewishCalendar={showJewishCalendar}
                 onToggleJewishCalendar={toggleJewishCalendar}
                 showHebrewDate={showHebrewDate}
