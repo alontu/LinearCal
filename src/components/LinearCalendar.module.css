@@ -31,19 +31,19 @@
   text-align: center;
   padding: 8px;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
   background-color: var(--bg-primary);
   /* Stick to top */
   z-index: 510;
-  box-shadow: 0 0 0 4px var(--bg-primary);
-  /* Cover grid gaps */
+  /* Layer 1 (bg) fills the 4px grid gaps; layer 2 (border color, nudged 1px
+     down with the same 4px spread) peeks out only at the bottom, bridging the
+     gaps into a single continuous underline instead of broken per-cell dashes. */
+  box-shadow: 0 0 0 4px var(--bg-primary), 0 1px 0 4px var(--border-color);
 }
 
 .headerCell.sunday {
   color: #ff4d4d;
-  border-right: 1px solid var(--text-muted);
 }
 
 .monthLabelColumn {
@@ -285,14 +285,16 @@
   display: none;
 }
 
-/* Ensure Gridlines toggle ONLY affects Day Borders */
+/* Gridlines toggle also clears the header underline, so the weekday header
+   stays consistent with the (now line-less) grid instead of keeping a fixed
+   line regardless of the toggle. */
 .hideGridlines .dayCell {
   border: 1px solid transparent !important;
   box-shadow: none !important;
 }
 
 .hideGridlines .headerCell {
-  border-right: 1px solid transparent !important;
+  box-shadow: 0 0 0 4px var(--bg-primary);
 }
 
 /* Ensure explicit removal of old border override attempts if any remain */
@@ -326,10 +328,6 @@
 .compactGrid .monthDivider {
   margin-top: -4px;
   margin-bottom: -4px;
-}
-
-.hideGridlines .headerCell {
-  border-right: 1px solid transparent !important;
 }
 
 .hideGridlines .dayCell.today {
