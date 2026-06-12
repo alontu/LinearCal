@@ -70,6 +70,54 @@
     transition: background-color 0.2s;
 }
 
+/* Grouped "view settings" controls with a clarifying label + per-button text. */
+.viewGroup {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.15rem 0.4rem;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+
+.viewGroupLabel {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    white-space: nowrap;
+    margin-inline-end: 0.1rem;
+}
+
+.viewToggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.viewToggle:hover {
+    background-color: var(--btn-hover);
+}
+
+.viewToggle[data-active="false"] {
+    opacity: 0.5;
+    filter: grayscale(100%);
+}
+
+.viewToggle[data-active="true"] {
+    background-color: rgba(106, 176, 255, 0.12);
+    border-color: var(--border-color);
+}
+
 .themeToggle:hover {
     background-color: var(--btn-hover);
 }

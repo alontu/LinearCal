@@ -249,51 +249,38 @@ export default function CalendarHeader({
                 </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                    onClick={onToggleWeeks}
-                    className={styles.themeToggle}
-                    title={showWeeks ? "הסתר מספרי שבוע" : "הצג מספרי שבוע"}
-                    style={{
-                        fontSize: '1rem',
-                        width: 'auto',
-                        borderRadius: '8px',
-                        opacity: showWeeks ? 1 : 0.4,
-                        filter: showWeeks ? 'none' : 'grayscale(100%)'
-                    }}
-                >
-                    #️⃣
-                </button>
-                <button
-                    onClick={onToggleGridlines}
-                    className={styles.themeToggle}
-                    title={showGridlines ? "הסתר קווי רשת" : "הצג קווי רשת"}
-                    style={{
-                        fontSize: '1rem',
-                        width: 'auto',
-                        borderRadius: '8px',
-                        opacity: showGridlines ? 1 : 0.4,
-                        filter: showGridlines ? 'none' : 'grayscale(100%)',
-                        color: 'var(--text-primary)'
-                    }}
-                >
-                    ▦
-                </button>
-                <button
-                    onClick={onToggleSeparators}
-                    className={styles.themeToggle}
-                    title={showSeparators ? "הסתר מפרידים" : "הצג מפרידים"}
-                    style={{
-                        fontSize: '1rem',
-                        width: 'auto',
-                        borderRadius: '8px',
-                        opacity: showSeparators ? 1 : 0.4,
-                        filter: showSeparators ? 'none' : 'grayscale(100%)',
-                        color: 'var(--text-primary)'
-                    }}
-                >
-                    ◫
-                </button>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                {/* View-settings group: labeled controls so it's clear they edit the display */}
+                <div className={styles.viewGroup}>
+                    <span className={styles.viewGroupLabel}>תצוגה</span>
+                    <button
+                        onClick={onToggleWeeks}
+                        className={styles.viewToggle}
+                        data-active={showWeeks}
+                        aria-pressed={showWeeks}
+                        title={showWeeks ? "הסתר מספרי שבוע" : "הצג מספרי שבוע"}
+                    >
+                        <span aria-hidden="true">#️⃣</span> שבועות
+                    </button>
+                    <button
+                        onClick={onToggleGridlines}
+                        className={styles.viewToggle}
+                        data-active={showGridlines}
+                        aria-pressed={showGridlines}
+                        title={showGridlines ? "הסתר קווי רשת" : "הצג קווי רשת"}
+                    >
+                        <span aria-hidden="true">▦</span> רשת
+                    </button>
+                    <button
+                        onClick={onToggleSeparators}
+                        className={styles.viewToggle}
+                        data-active={showSeparators}
+                        aria-pressed={showSeparators}
+                        title={showSeparators ? "הסתר מפרידים" : "הצג מפרידים"}
+                    >
+                        <span aria-hidden="true">◫</span> מפרידים
+                    </button>
+                </div>
                 <button onClick={onToggleTheme} className={styles.themeToggle} title={`עבור למצב ${theme === 'dark' ? 'בהיר' : 'כהה'}`}>
                     {theme === 'dark' ? '☀️' : '🌙'}
                 </button>
