@@ -10,6 +10,7 @@ import styles from './CalendarHeader.module.css';
 registerLocale('he', he);
 import { CalendarListEntry } from '@/lib/google-calendar';
 import CalendarFilter from './CalendarFilter';
+import DensityControl from './DensityControl';
 import { signOut } from 'next-auth/react';
 
 interface CalendarHeaderProps {
@@ -280,6 +281,7 @@ export default function CalendarHeader({
                     >
                         <span aria-hidden="true">◫</span> מפרידים
                     </button>
+                    <DensityControl />
                 </div>
                 <button onClick={onToggleTheme} className={styles.themeToggle} title={`עבור למצב ${theme === 'dark' ? 'בהיר' : 'כהה'}`}>
                     {theme === 'dark' ? '☀️' : '🌙'}
