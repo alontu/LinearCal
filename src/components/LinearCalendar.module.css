@@ -165,7 +165,7 @@
 
 .weekNumLabel {
   position: absolute;
-  top: -15px;
+  top: -13px;
   right: -1px;
   font-size: 0.65rem;
   font-weight: 700;
@@ -316,8 +316,8 @@
   height: 0;
   border-top: 2px solid var(--border-color);
   width: 100%;
-  margin-top: -12px;
-  margin-bottom: -10px;
+  margin-top: -7px;
+  margin-bottom: -6px;
   /* Pull next month up */
   opacity: 0.5;
   pointer-events: none;
