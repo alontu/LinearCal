@@ -39,7 +39,10 @@
   background-color: var(--cal-header-cell-bg);
   /* Stick to top */
   z-index: 510;
-  box-shadow: 0 0 0 4px var(--cal-header-cell-bg);
+  /* Band fill across the 4px gaps, plus a 1px line that peeks out at the bottom
+     to separate the header from the calendar content. The line is removed by
+     .hideSeparators (it belongs to the "separators" view setting). */
+  box-shadow: 0 0 0 4px var(--cal-header-cell-bg), 0 1px 0 4px var(--border-color);
 }
 
 .headerCell.sunday {
@@ -285,17 +288,16 @@
   display: none;
 }
 
-/* Gridlines toggle also clears the header underline, so the weekday header
-   stays consistent with the (now line-less) grid instead of keeping a fixed
-   line regardless of the toggle. */
+/* Separators off -> keep the header band but drop its bottom separator line. */
+.hideSeparators .headerCell {
+  box-shadow: 0 0 0 4px var(--cal-header-cell-bg);
+}
+
+/* Gridlines toggle clears the day-cell borders only; the weekday header band is
+   independent of it (its separator line is controlled by .hideSeparators). */
 .hideGridlines .dayCell {
   border: 1px solid transparent !important;
   box-shadow: none !important;
-}
-
-.hideGridlines .headerCell {
-  background-color: var(--bg-primary);
-  box-shadow: 0 0 0 4px var(--bg-primary);
 }
 
 /* Ensure explicit removal of old border override attempts if any remain */
