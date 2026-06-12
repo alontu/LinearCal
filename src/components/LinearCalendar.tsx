@@ -682,7 +682,7 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                 <div
                     className={`${styles.mainGrid} ${!showWeeks ? styles.compactGrid : ''}`}
                     ref={mainGridRef}
-                    style={{ rowGap: showWeeks ? '24px' : '8px' }}
+                    style={{ rowGap: showWeeks ? '16px' : '8px' }}
                 >
                     {/* Header Row */}
                     <div className={styles.headerCell} style={{ gridColumn: 1 }}>חודש</div> {/* Month Col Header */}
