@@ -33,13 +33,13 @@
   color: var(--text-secondary);
   position: sticky;
   top: 0;
-  background-color: var(--bg-primary);
+  /* Subtle header band: a faint tint, with the box-shadow filling the 4px grid
+     gaps in the same color so the weekday header reads as one continuous strip
+     (no per-cell dashes, no lines). */
+  background-color: var(--cal-header-cell-bg);
   /* Stick to top */
   z-index: 510;
-  /* Layer 1 (bg) fills the 4px grid gaps; layer 2 (border color, nudged 1px
-     down with the same 4px spread) peeks out only at the bottom, bridging the
-     gaps into a single continuous underline instead of broken per-cell dashes. */
-  box-shadow: 0 0 0 4px var(--bg-primary), 0 1px 0 4px var(--border-color);
+  box-shadow: 0 0 0 4px var(--cal-header-cell-bg);
 }
 
 .headerCell.sunday {
@@ -294,6 +294,7 @@
 }
 
 .hideGridlines .headerCell {
+  background-color: var(--bg-primary);
   box-shadow: 0 0 0 4px var(--bg-primary);
 }
 
