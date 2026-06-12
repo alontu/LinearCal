@@ -901,7 +901,7 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                                                             <div
                                                                 key={trackIdx}
                                                                 className={styles.multiDayBar}
-                                                                style={{ visibility: 'hidden', height: '18px' }} // Ensure height matches
+                                                                style={{ visibility: 'hidden', height: 'var(--bar-h, 18px)' }} // Ensure height matches
                                                             />
                                                         );
                                                     }

@@ -18,7 +18,7 @@
 .mainGrid {
   display: grid;
   /* 1 Month Label Col + 37 Cols */
-  grid-template-columns: 100px repeat(37, minmax(40px, 1fr));
+  grid-template-columns: 100px repeat(37, minmax(var(--col-min-w, 40px), 1fr));
   gap: 24px 4px;
   min-width: 1500px;
   /* Force scroll for large grids */
@@ -67,7 +67,7 @@
 .dayCell {
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  min-height: 80px;
+  min-height: var(--cell-min-h, 80px);
   position: relative;
   background-color: var(--bg-card);
   transition: all 0.2s;
@@ -133,7 +133,7 @@
 }
 
 .dayNumber {
-  font-size: 0.85rem;
+  font-size: var(--day-num-font, 0.85rem);
   font-weight: 700;
   color: var(--cal-text);
   line-height: 1;
@@ -210,12 +210,12 @@
 }
 
 .emptyTrack {
-  height: 18px;
+  height: var(--bar-h, 18px);
   width: 100%;
 }
 
 .multiDayBar {
-  height: 18px;
+  height: var(--bar-h, 18px);
   margin-inline: -3px;
   background-color: var(--event-bar-bg, #3d7eff);
   position: relative;
@@ -251,7 +251,7 @@
 
 .barLabel {
   padding: 0 4px;
-  font-size: clamp(8px, 15cqi, 11px);
+  font-size: clamp(8px, 15cqi, var(--bar-font, 11px));
   font-weight: 500;
   white-space: nowrap;
   color: inherit;

@@ -1,0 +1,128 @@
+.container {
+    position: relative;
+    display: inline-flex;
+}
+
+/* Trigger styled to match the .viewToggle buttons in the header's "תצוגה" group. */
+.trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-primary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+}
+
+.trigger:hover {
+    background-color: var(--btn-hover);
+}
+
+.popover {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    margin-top: 8px;
+    width: 260px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    box-shadow: 0 10px 24px -6px rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.heading {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+
+/* Segmented preset control */
+.presets {
+    display: flex;
+    gap: 4px;
+    background: var(--btn-bg);
+    border-radius: 8px;
+    padding: 3px;
+}
+
+.preset {
+    flex: 1;
+    padding: 6px 0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.preset:hover {
+    color: var(--text-primary);
+}
+
+.presetActive {
+    background: var(--bg-card);
+    color: var(--text-accent);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.advanced {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sliderRow {
+    display: grid;
+    grid-template-columns: 5.5rem 1fr 2.5rem;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: var(--text-primary);
+}
+
+.sliderLabel {
+    white-space: nowrap;
+}
+
+.range {
+    width: 100%;
+    accent-color: var(--text-accent);
+    cursor: pointer;
+}
+
+.sliderValue {
+    text-align: end;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.reset {
+    align-self: flex-start;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.reset:hover {
+    background-color: var(--btn-hover);
+    color: var(--text-primary);
+}
