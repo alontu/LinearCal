@@ -491,6 +491,11 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
         params.delete('start');
         params.delete('end');
         params.set('year', String(year));
+        // Rebuild `calendars` from component state (the source of truth) rather
+        // than trusting the URL, which may not have committed the most recent
+        // toggle yet — otherwise the holidays/Hebrew-date overlays get dropped
+        // on the first year change after enabling them.
+        applyCalendarsParam(params, { regularIds: visibleCalendarIds, showJewishCalendar, showHebrewDate });
         router.push(`/?${params.toString()}`);
     };
 
@@ -515,7 +520,8 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
         params.delete('year');
         params.set('start', format(newStart, 'yyyy-MM'));
         params.set('end', format(newEnd, 'yyyy-MM'));
-
+        // Preserve the overlays/visible calendars from state (see changeYear).
+        applyCalendarsParam(params, { regularIds: visibleCalendarIds, showJewishCalendar, showHebrewDate });
         router.push(`/?${params.toString()}`);
     };
 

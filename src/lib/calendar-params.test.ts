@@ -91,4 +91,21 @@ describe('applyCalendarsParam', () => {
         expect(ids).toContain('work');
         expect(ids).toContain(JEWISH_CALENDAR_ID);
     });
+
+    // Regression: changing the year must keep the overlays even when the URL
+    // hasn't committed the most recent toggle yet — by rebuilding `calendars`
+    // from component state, not from the (stale) URL.
+    it('year navigation rebuilds overlays from state over a stale URL', () => {
+        const params = new URLSearchParams('calendars=primary&year=2026'); // URL missing overlays
+        params.set('year', '2027');
+        applyCalendarsParam(params, {
+            regularIds: ['primary'],
+            showJewishCalendar: true, // state says they ARE on
+            showHebrewDate: true,
+        });
+        const ids = params.get('calendars')!.split(',');
+        expect(ids).toContain(JEWISH_CALENDAR_ID);
+        expect(ids).toContain(HEBREW_DATE_ID);
+        expect(params.get('year')).toBe('2027');
+    });
 });
