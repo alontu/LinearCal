@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { PHProvider } from "./providers";
@@ -14,8 +14,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "לוח שנה ליניארי",
-  description: "לוח שנה שנתי ליניארי מבוסס Google Calendar",
+  title: "לוח שנה ליניארי · עין פרת",
+  description: "לוח שנה שנתי ליניארי מבוסס Google Calendar · עין פרת",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#223a6b",
 };
 
 export default function RootLayout({
