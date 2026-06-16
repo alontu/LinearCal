@@ -86,7 +86,9 @@ export default function CalendarHeader({
 
     useEffect(() => {
         if (!isRangePickerOpen) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPickerStart(startDate);
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setPickerEnd(endDate);
         }
     }, [isRangePickerOpen, startDate, endDate]);

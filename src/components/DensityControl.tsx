@@ -62,6 +62,7 @@ export default function DensityControl() {
     useEffect(() => {
         const saved = parseDensity(localStorage.getItem(STORAGE_KEY));
         if (saved) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setSettings(saved);
             applyVars(saved);
         }

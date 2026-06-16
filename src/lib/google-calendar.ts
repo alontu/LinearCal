@@ -77,6 +77,8 @@ export async function getEventColors(accessToken: string) {
 }
 
 
+export type EventColors = Record<string, { background?: string | null; foreground?: string | null }>;
+
 export type CalendarEvent = {
     id?: string | null;
     summary?: string | null;

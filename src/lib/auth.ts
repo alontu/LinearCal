@@ -1,8 +1,9 @@
 import { NextAuthOptions } from "next-auth";
+import { JWT } from "next-auth/jwt";
 import GoogleProvider from "next-auth/providers/google";
 
 // Helper function to refresh the access token
-async function refreshAccessToken(token: any) {
+async function refreshAccessToken(token: JWT): Promise<JWT> {
     try {
         const url =
             "https://oauth2.googleapis.com/token?" +
@@ -10,7 +11,7 @@ async function refreshAccessToken(token: any) {
                 client_id: process.env.GOOGLE_CLIENT_ID!,
                 client_secret: process.env.GOOGLE_CLIENT_SECRET!,
                 grant_type: "refresh_token",
-                refresh_token: token.refreshToken,
+                refresh_token: token.refreshToken ?? '',
             });
 
         const response = await fetch(url, {
@@ -50,7 +51,7 @@ export const authOptions: NextAuthOptions = {
             clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
             authorization: {
                 params: {
-                    scope: "openid email profile https://www.googleapis.com/auth/calendar",
+                    scope: "openid email profile https://www.googleapis.com/auth/calendar.events",
                     prompt: "consent",
                     access_type: "offline",
                     response_type: "code",
@@ -72,7 +73,7 @@ export const authOptions: NextAuthOptions = {
 
             // Return previous token if the access token has not expired yet
             // Give a 10 second buffer
-            if (Date.now() < ((token as any).accessTokenExpires - 10000)) {
+            if (Date.now() < ((token.accessTokenExpires ?? 0) - 10000)) {
                 return token;
             }
 

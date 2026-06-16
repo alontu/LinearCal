@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from './LinearCalendar.module.css';
-import { CalendarEvent } from '@/lib/google-calendar';
+import { CalendarEvent, CalendarListEntry, EventColors } from '@/lib/google-calendar';
 import { format, eachDayOfInterval, isSameDay, getWeek, parseISO, endOfMonth, getDay, isToday, differenceInCalendarDays, eachMonthOfInterval } from 'date-fns';
 import { he } from 'date-fns/locale';
 import { useRouter } from 'next/navigation';
@@ -10,7 +10,6 @@ import { useRouter } from 'next/navigation';
 import DayDetailModal from './DayDetailModal';
 import CreateEventModal from './CreateEventModal';
 import CalendarHeader from './CalendarHeader';
-import { CalendarListEntry } from '@/lib/google-calendar';
 import { HDate, gematriya, Locale } from '@hebcal/core';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -35,7 +34,7 @@ interface LinearCalendarProps {
     endDate: Date;
     allCalendars: CalendarListEntry[];
     selectedCalendarIds: string[];
-    eventColors: any; // Google Color definitions
+    eventColors: EventColors;
 }
 
 export default function LinearCalendar({ events: initialEventsProp, startDate, endDate, allCalendars, selectedCalendarIds: initialSelectedIdsProp, eventColors }: LinearCalendarProps) {
@@ -105,7 +104,7 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
 
         // Mode 2: Single-Calendar View -> Try Event Color, fallback to Calendar Color
         if (event.colorId && eventColors && eventColors[event.colorId]) {
-            return eventColors[event.colorId].background;
+            return eventColors[event.colorId].background ?? 'var(--event-bar-bg, #3d7eff)';
         }
 
         // Fallback
@@ -238,21 +237,21 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                     // 1. Fix Sticky Overlay: Remove sticky positioning from headers in the clone
 
                     const headers = element.querySelectorAll('[class*="headerCell"]');
-                    headers.forEach((el: any) => {
-                        el.style.position = 'static';
-                        el.style.transform = 'none'; // reset any transforms
+                    headers.forEach((el) => {
+                        (el as HTMLElement).style.position = 'static';
+                        (el as HTMLElement).style.transform = 'none';
                     });
 
                     const monthLabels = element.querySelectorAll('[class*="monthLabelColumn"]');
-                    monthLabels.forEach((el: any) => {
-                        el.style.position = 'static';
-                        el.style.left = 'auto';
+                    monthLabels.forEach((el) => {
+                        (el as HTMLElement).style.position = 'static';
+                        (el as HTMLElement).style.left = 'auto';
                     });
 
                     // 2. Remove Rosh Chodesh Borders for Cleaner PDF
                     const roshChodeshCells = element.querySelectorAll('[class*="roshChodeshMarker"]');
-                    roshChodeshCells.forEach((el: any) => {
-                        el.style.boxShadow = 'none';
+                    roshChodeshCells.forEach((el) => {
+                        (el as HTMLElement).style.boxShadow = 'none';
                     });
                 }
             });
@@ -294,7 +293,7 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
     const [dragEndDay, setDragEndDay] = useState<Date | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [createRange, setCreateRange] = useState<{ start: Date, end: Date } | null>(null);
-    const [editingEvent, setEditingEvent] = useState<any>(null); // For Edit Mode
+    const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
 
     const [isCreatingCalendarLoading, setIsCreatingCalendarLoading] = useState(false);
 
@@ -392,7 +391,7 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
         return day >= start && day <= end;
     };
 
-    const handleSaveSuccess = (newEvent: any) => {
+    const handleSaveSuccess = (newEvent: CalendarEvent) => {
         // Optimistic update or refetch
         // For simplicity, just refetch or rely on revalidation if we had it.
         // Let's manually append for now to be snappy, or better: force re-fetch.
@@ -651,7 +650,7 @@ export default function LinearCalendar({ events: initialEventsProp, startDate, e
                 defaultCalendarId={visibleCalendarIds[0]} // Default to first visible
                 eventColors={eventColors}
                 onSaveSuccess={handleSaveSuccess}
-                initialEvent={editingEvent}
+                initialEvent={editingEvent ?? undefined}
                 onDeleteSuccess={handleDeleteSuccess}
             />
 

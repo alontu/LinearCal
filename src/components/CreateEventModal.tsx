@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import styles from './CreateEventModal.module.css';
-import { CalendarListEntry } from '@/lib/google-calendar';
+import { CalendarListEntry, CalendarEvent, EventColors } from '@/lib/google-calendar';
 import { createEventAction, updateEventAction, deleteEventAction } from '@/app/actions';
 import { format } from 'date-fns';
 import DatePicker from 'react-datepicker';
@@ -20,9 +20,9 @@ interface CreateEventModalProps {
     initialDateRange: { start: Date; end: Date } | null;
     calendars: CalendarListEntry[];
     defaultCalendarId: string;
-    eventColors: any;
-    onSaveSuccess: (event: any) => void;
-    initialEvent?: any; // If provided, we are in EDIT mode
+    eventColors: EventColors;
+    onSaveSuccess: (event: CalendarEvent) => void;
+    initialEvent?: CalendarEvent;
     onDeleteSuccess?: (eventId: string) => void;
 }
 
@@ -67,10 +67,10 @@ export default function CreateEventModal({
                 // hit the right calendar (not just the default visible one).
                 setSelectedCalendarId(resolveEventCalendarId(initialEvent, defaultCalendarId));
 
-                const s = initialEvent.start.dateTime || initialEvent.start.date;
-                const e = initialEvent.end.dateTime || initialEvent.end.date;
+                const s = initialEvent.start?.dateTime || initialEvent.start?.date || '';
+                const e = initialEvent.end?.dateTime || initialEvent.end?.date || '';
 
-                const isDateTime = !!initialEvent.start.dateTime;
+                const isDateTime = !!initialEvent.start?.dateTime;
                 setIsAllDay(!isDateTime);
 
                 const startD = new Date(s);
@@ -134,7 +134,7 @@ export default function CreateEventModal({
         try {
             let result;
             if (isEditMode) {
-                result = await updateEventAction(selectedCalendarId, initialEvent.id, eventData);
+                result = await updateEventAction(selectedCalendarId, initialEvent!.id ?? '', eventData);
             } else {
                 result = await createEventAction(selectedCalendarId, eventData);
             }
@@ -161,9 +161,10 @@ export default function CreateEventModal({
         setIsDeleting(true);
         setErrorMsg(null);
         try {
-            const result = await deleteEventAction(selectedCalendarId, initialEvent.id);
+            const eventId = initialEvent?.id ?? '';
+            const result = await deleteEventAction(selectedCalendarId, eventId);
             if (result.success) {
-                if (onDeleteSuccess) onDeleteSuccess(initialEvent.id);
+                if (onDeleteSuccess) onDeleteSuccess(eventId);
                 onClose();
             } else {
                 setErrorMsg('שגיאה במחיקת האירוע: ' + result.error);
@@ -304,9 +305,9 @@ export default function CreateEventModal({
                                     <div
                                         key={key}
                                         className={`${styles.colorOption} ${colorId === key ? styles.selected : ''}`}
-                                        style={{ backgroundColor: eventColors[key].background }}
+                                        style={{ backgroundColor: eventColors[key].background ?? undefined }}
                                         onClick={() => setColorId(key)}
-                                        title={eventColors[key].foreground} // Just a hover hint
+                                        title={eventColors[key].foreground ?? undefined}
                                     />
                                 ))}
                             </div>
